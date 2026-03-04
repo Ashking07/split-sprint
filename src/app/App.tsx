@@ -118,8 +118,10 @@ export default function App() {
 
   useEffect(() => {
     if (!hydrated || !user) return;
+    // Skip when on confirm screen — avoid competing with expense creation (GET /api/bills is slow)
+    if (screen === "confirm") return;
     fetchHistory();
-  }, [hydrated, user, fetchHistory]);
+  }, [hydrated, user, fetchHistory, screen]);
 
   const state = {
     screen,

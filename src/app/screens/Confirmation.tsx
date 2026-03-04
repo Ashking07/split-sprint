@@ -83,6 +83,12 @@ export function Confirmation({ state, setState, navigate }: ConfirmationProps) {
       .catch(() => setSplitwiseConnected(false));
   }, []);
 
+  // Warm API when this screen mounts so "Create in Splitwise" doesn't hit a cold function.
+  // (Hard refresh works because main.tsx fires /api/health on load; SPA navigation skips that.)
+  useEffect(() => {
+    fetch("/api/health").catch(() => {});
+  }, []);
+
   const getSummary = () =>
     generateSplitwiseSummary(
       state.merchant || "Bill",
