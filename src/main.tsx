@@ -5,6 +5,9 @@ import { ErrorBoundary } from "./app/components/ErrorBoundary";
 import "./styles/index.css";
 import { setDeferredPrompt } from "./lib/installPrompt";
 
+// Warm up the API immediately so cold start happens while user sees the loading spinner
+fetch("/api/health").catch(() => {});
+
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   setDeferredPrompt(e as Parameters<typeof setDeferredPrompt>[0]);

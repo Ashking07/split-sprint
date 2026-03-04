@@ -31,7 +31,10 @@ app.use((req, _res, next) => {
 });
 
 app.use(cors());
-app.get("/api/health", (_req, res) => res.status(200).json({ ok: true }));
+app.get("/api/health", (_req, res) => {
+  connectDB().catch(() => {});
+  res.status(200).json({ ok: true });
+});
 // Receipt images as base64 can be ~5MB; default 100kb is too small
 app.use(express.json({ limit: "6mb" }));
 
