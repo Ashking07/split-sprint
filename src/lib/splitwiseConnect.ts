@@ -1,8 +1,8 @@
 /**
- * Opens Splitwise OAuth flow. Same-tab redirect for reliability across all platforms.
- * Uses absolute URL to avoid PWA/service-worker edge cases on production.
+ * Opens Splitwise OAuth flow. Warms the API first to avoid cold-start 504,
+ * then redirects in the same tab for reliability across all platforms.
  */
-export function openSplitwiseConnect(returnTo: string): void {
+export async function openSplitwiseConnect(returnTo: string): Promise<void> {
   const token = localStorage.getItem("splitsprint-token");
   const base =
     import.meta.env.VITE_API_URL ||
@@ -10,6 +10,13 @@ export function openSplitwiseConnect(returnTo: string): void {
   if (!token) {
     alert("Please log in first.");
     return;
+  }
+
+  // Warm up the serverless function before redirecting
+  try {
+    await fetch(`${base.replace(/\/$/, "")}/api/health`);
+  } catch {
+    // ignore - even a failed request warms the function
   }
 
   const params = new URLSearchParams({
