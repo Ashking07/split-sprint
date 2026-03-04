@@ -1,12 +1,8 @@
 /**
  * Dedicated Vercel function for Splitwise status.
- * Bypasses rewrite, returns Cache-Control: no-store to prevent stale responses.
+ * Routes through Express so req.get(), req.query, etc. work correctly.
+ * Bypasses the /api/(.*) rewrite to avoid query param issues.
  */
-import { statusHandler } from "../../server/routes/splitwiseHandlers.js";
+import app from "../../server.js";
 
-export default async function handler(req, res) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-  return statusHandler(req, res);
-}
+export default app;

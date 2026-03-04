@@ -1,12 +1,8 @@
 /**
  * Dedicated Vercel function for Splitwise OAuth connect.
- * Bypasses the /api/(.*) rewrite - no path restore, no query loss.
+ * Routes through Express so req.get(), req.query, etc. work correctly.
+ * Bypasses the /api/(.*) rewrite since this file matches the path directly.
  */
-import { connectHandler } from "../../server/routes/splitwiseHandlers.js";
+import app from "../../server.js";
 
-export default async function handler(req, res) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-  return connectHandler(req, res);
-}
+export default app;
