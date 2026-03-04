@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { apiLogin, apiSignup, apiMe } from "../lib/api";
+import { hapticSuccess, hapticError } from "../lib/haptic";
 
 interface User {
   id: string;
@@ -33,8 +34,10 @@ export const useAuthStore = create<AuthStore>()(
           const { token, user } = await apiLogin(email, password);
           localStorage.setItem("splitsprint-token", token);
           set({ token, user, isLoading: false });
+          hapticSuccess();
         } catch (err) {
           set({ isLoading: false });
+          hapticError();
           throw err;
         }
       },
@@ -45,8 +48,10 @@ export const useAuthStore = create<AuthStore>()(
           const { token, user } = await apiSignup(email, password, name);
           localStorage.setItem("splitsprint-token", token);
           set({ token, user, isLoading: false });
+          hapticSuccess();
         } catch (err) {
           set({ isLoading: false });
+          hapticError();
           throw err;
         }
       },
@@ -60,6 +65,34 @@ export const useAuthStore = create<AuthStore>()(
         const token = localStorage.getItem("splitsprint-token");
         if (!token) {
           set({ isChecked: true });
+          return;
+        }
+        // Optimistic: show cached user immediately for returning users
+        let cachedUser: User | null = null;
+        try {
+          const stored = localStorage.getItem("splitsprint-auth");
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            cachedUser = parsed?.state?.user ?? null;
+          }
+        } catch {
+          /* ignore */
+        }
+        if (cachedUser) {
+          set({ token, user: cachedUser, isChecked: true });
+          apiMe()
+            .then((user) => {
+              if (!user) {
+                localStorage.removeItem("splitsprint-token");
+                set({ token: null, user: null });
+              } else {
+                set({ user });
+              }
+            })
+            .catch(() => {
+              localStorage.removeItem("splitsprint-token");
+              set({ token: null, user: null });
+            });
           return;
         }
         try {

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { NavBar } from "../components/NavBar";
 import { ProgressStepper } from "../components/ProgressStepper";
 import { AppState, Person, ReceiptItem, Screen } from "../types";
@@ -8,6 +8,7 @@ import { MOCK_RECEIPT_ITEMS } from "../mockData";
 import { computeShares } from "../../lib/settlement";
 import { formatCents } from "../../lib/cents";
 import { useAuthStore } from "../../store/authStore";
+import { hapticLight } from "../../lib/haptic";
 import {
   Drawer,
   DrawerContent,
@@ -87,7 +88,12 @@ export function SplitSetup({ state, setState, navigate }: SplitSetupProps) {
     });
   };
 
+  const [continuing, setContinuing] = useState(false);
+
   const handleContinue = () => {
+    if (continuing) return;
+    hapticLight();
+    setContinuing(true);
     const updatedItems = items.map((item) => ({
       ...item,
       assignedTo: Array.from(itemAssignments[item.id] || new Set(people.map((p) => p.id))),
@@ -389,17 +395,25 @@ export function SplitSetup({ state, setState, navigate }: SplitSetupProps) {
           </span>
         </div>
         <motion.button
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: continuing ? 1 : 0.97 }}
           onClick={handleContinue}
-          className="w-full py-4 rounded-2xl"
+          disabled={continuing}
+          className="w-full py-4 rounded-2xl flex items-center justify-center gap-2"
           style={{
-            background: "linear-gradient(135deg, #22C55E, #16A34A)",
+            background: continuing ? "#9CA3AF" : "linear-gradient(135deg, #22C55E, #16A34A)",
             color: "white",
             fontSize: "16px",
             fontWeight: 800,
           }}
         >
-          Review & Send →
+          {continuing ? (
+            <>
+              <Loader2 size={20} className="animate-spin" />
+              Loading...
+            </>
+          ) : (
+            "Review & Send →"
+          )}
         </motion.button>
       </div>
     </div>

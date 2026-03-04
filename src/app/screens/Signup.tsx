@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { motion } from "motion/react";
 import { Mail, Lock, User, ArrowRight } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
+import { hapticLight } from "../../lib/haptic";
 
 interface SignupProps {
   onLogin: () => void;
@@ -137,6 +138,7 @@ export function Signup({ onLogin }: SignupProps) {
           type="submit"
           disabled={isLoading}
           whileTap={{ scale: 0.98 }}
+          onClick={() => hapticLight()}
           className="w-full py-4 rounded-2xl flex items-center justify-center gap-2 mt-2"
           style={{
             background: "linear-gradient(135deg, #22C55E, #16A34A)",
@@ -159,7 +161,10 @@ export function Signup({ onLogin }: SignupProps) {
       >
         Already have an account?{" "}
         <button
-          onClick={onLogin}
+          onClick={() => {
+            hapticLight();
+            onLogin();
+          }}
           style={{ color: "#22C55E", fontWeight: 700, background: "none", border: "none", cursor: "pointer" }}
         >
           Sign in

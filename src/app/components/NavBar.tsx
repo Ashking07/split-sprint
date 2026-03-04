@@ -1,5 +1,6 @@
 import React from "react";
 import { ChevronLeft } from "lucide-react";
+import { hapticLight } from "@/lib/haptic";
 
 interface NavBarProps {
   title: string;
@@ -16,7 +17,10 @@ export function NavBar({ title, subtitle, onBack, rightAction }: NavBarProps) {
   return (
     <div className="flex items-center gap-3 flex-shrink-0 px-5 py-3">
       <button
-        onClick={onBack}
+        onClick={() => {
+          hapticLight();
+          onBack();
+        }}
         className="flex items-center gap-1 min-h-[44px] min-w-[44px] -ml-2 pl-2 pr-1 rounded-xl active:opacity-70 transition-opacity"
         style={{ color: "#007AFF" }}
         aria-label="Back"

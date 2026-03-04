@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { Search, Check, Users, Plus, Link2 } from "lucide-react";
+import { Search, Check, Users, Plus, Link2, Loader2 } from "lucide-react";
 import { NavBar } from "../components/NavBar";
 import { ProgressStepper } from "../components/ProgressStepper";
 import { AppState, Group, Person, Screen } from "../types";
@@ -15,6 +15,8 @@ import {
   apiUpdateGroupSplitwise,
 } from "../../lib/api";
 import { useBillStore } from "../../store/billStore";
+import { hapticLight } from "../../lib/haptic";
+import { getCachedGroups, setCachedGroups } from "../../lib/groupsCache";
 
 interface ChooseGroupProps {
   state: AppState;
@@ -42,8 +44,16 @@ export function ChooseGroup({ state, setState, navigate }: ChooseGroupProps) {
   const [showAddFromSplitwise, setShowAddFromSplitwise] = useState(false);
 
   useEffect(() => {
+    const cached = getCachedGroups();
+    if (cached?.length) {
+      setGroups(cached);
+      setLoading(false);
+    }
     apiGetGroups()
-      .then(setGroups)
+      .then((fresh) => {
+        setCachedGroups(fresh);
+        setGroups(fresh);
+      })
       .catch(() => setGroups([]))
       .finally(() => setLoading(false));
   }, []);
@@ -86,6 +96,13 @@ export function ChooseGroup({ state, setState, navigate }: ChooseGroupProps) {
     loadSplitwiseGroups();
   }, []);
 
+  useEffect(() => {
+    if (groups.length && !selectedGroupId) {
+      setSelectedGroupId(groups[0].id);
+      setSelectedPeople(new Set((groups[0].members || []).map((p) => p.id)));
+    }
+  }, [groups.length]);
+
   const allGroups = groups;
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
     state.selectedGroup?.id || groups[0]?.id || ""
@@ -122,12 +139,16 @@ export function ChooseGroup({ state, setState, navigate }: ChooseGroupProps) {
   };
 
   const setBillGroup = useBillStore((s) => s.setBillGroup);
+  const [continuing, setContinuing] = useState(false);
 
   const handleContinue = async () => {
+    if (continuing || !selectedGroup) return;
+    hapticLight();
+    setContinuing(true);
     const people = (selectedGroup?.members || []).filter((p) => selectedPeople.has(p.id));
     setState({ selectedGroup: selectedGroup || null, selectedPeople: people });
-    if (selectedGroup) await setBillGroup(selectedGroup.id);
     navigate("split");
+    if (selectedGroup) setBillGroup(selectedGroup.id);
   };
 
   const handleAddMember = async () => {
@@ -368,8 +389,25 @@ export function ChooseGroup({ state, setState, navigate }: ChooseGroupProps) {
         {/* Groups list */}
         <div className="flex flex-col gap-2 mb-4">
           {loading ? (
-            <div className="text-center py-8" style={{ color: "#9CA3AF", fontSize: "14px" }}>
-              Loading groups...
+            <div className="flex flex-col gap-2">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 rounded-2xl p-3.5 animate-pulse"
+                  style={{ background: "#F9FAFB", border: "2px solid #F3F4F6" }}
+                >
+                  <div className="w-12 h-12 rounded-2xl flex-shrink-0" style={{ background: "#E5E7EB" }} />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 rounded-lg w-3/4" style={{ background: "#E5E7EB" }} />
+                    <div className="h-3 rounded w-1/2" style={{ background: "#E5E7EB" }} />
+                    <div className="flex gap-1 mt-2">
+                      {[1, 2, 3].map((j) => (
+                        <div key={j} className="w-6 h-6 rounded-full" style={{ background: "#E5E7EB" }} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
           filteredGroups.map((group, i) => {
@@ -727,20 +765,28 @@ export function ChooseGroup({ state, setState, navigate }: ChooseGroupProps) {
       <div className="px-5 pt-3 pb-4 flex-shrink-0"
         style={{ background: "white", borderTop: "1px solid #F3F4F6", boxShadow: "0 -4px 20px rgba(0,0,0,0.06)" }}>
         <motion.button
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: continuing ? 1 : 0.97 }}
           onClick={handleContinue}
-          className="w-full py-4 rounded-2xl"
+          disabled={selectedPeople.size < 2 || !selectedGroup || continuing}
+          className="w-full py-4 rounded-2xl flex items-center justify-center gap-2"
           style={{
-            background: selectedPeople.size >= 2
-              ? "linear-gradient(135deg, #22C55E, #16A34A)"
-              : "#E5E7EB",
-            color: selectedPeople.size >= 2 ? "white" : "#9CA3AF",
+            background:
+              selectedPeople.size >= 2 && !continuing
+                ? "linear-gradient(135deg, #22C55E, #16A34A)"
+                : "#E5E7EB",
+            color: selectedPeople.size >= 2 && !continuing ? "white" : "#9CA3AF",
             fontSize: "16px",
             fontWeight: 800,
           }}
-          disabled={selectedPeople.size < 2 || !selectedGroup}
         >
-          Continue with {selectedPeople.size} people →
+          {continuing ? (
+            <>
+              <Loader2 size={20} className="animate-spin" />
+              Saving...
+            </>
+          ) : (
+            `Continue with ${selectedPeople.size} people →`
+          )}
         </motion.button>
       </div>
     </div>

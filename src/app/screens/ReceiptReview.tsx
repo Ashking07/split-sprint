@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { AlertTriangle, Check, Edit2, Plus, Trash2, Merge } from "lucide-react";
+import { AlertTriangle, Check, Edit2, Plus, Trash2, Merge, Loader2 } from "lucide-react";
 import { NavBar } from "../components/NavBar";
 import { ProgressStepper } from "../components/ProgressStepper";
 import { AppState, ReceiptItem, Screen } from "../types";
 import { mergeDuplicates, needsReview } from "../../lib/mergeDuplicates";
 import { MOCK_RECEIPT_ITEMS, MOCK_TAX } from "../mockData";
 import { useBillStore } from "../../store/billStore";
+import { hapticLight } from "../../lib/haptic";
+import { prefetchGroups } from "../../lib/groupsCache";
 
 interface ReceiptReviewProps {
   state: AppState;
@@ -30,6 +32,7 @@ export function ReceiptReview({ state, setState, navigate }: ReceiptReviewProps)
   const [editPrice, setEditPrice] = useState("");
   const [showCustomTip, setShowCustomTip] = useState(false);
   const [filter, setFilter] = useState<"all" | "needs_review">("all");
+  const [saving, setSaving] = useState(false);
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
   const tipAmount = state.tipPreset === -1
@@ -98,6 +101,10 @@ export function ReceiptReview({ state, setState, navigate }: ReceiptReviewProps)
   };
   const receiptImageUrl = useBillStore((s) => s.receiptImageUrl);
   const saveDraftFromReview = useBillStore((s) => s.saveDraftFromReview);
+
+  useEffect(() => {
+    prefetchGroups();
+  }, []);
 
   // Debounced save to API (draft persistence)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -377,16 +384,36 @@ export function ReceiptReview({ state, setState, navigate }: ReceiptReviewProps)
           </div>
         </div>
         <motion.button
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: saving ? 1 : 0.97 }}
           onClick={async () => {
+            if (saving) return;
+            hapticLight();
+            setSaving(true);
             setState({ items, tax, tip: tipAmount });
-            await useBillStore.getState().saveDraftFromReview();
-            navigate("group");
+            try {
+              await useBillStore.getState().saveDraftFromReview();
+              navigate("group");
+            } finally {
+              setSaving(false);
+            }
           }}
-          className="w-full py-4 rounded-2xl"
-          style={{ background: "linear-gradient(135deg, #22C55E, #16A34A)", color: "white", fontSize: "16px", fontWeight: 800 }}
+          disabled={saving}
+          className="w-full py-4 rounded-2xl flex items-center justify-center gap-2"
+          style={{
+            background: saving ? "#9CA3AF" : "linear-gradient(135deg, #22C55E, #16A34A)",
+            color: "white",
+            fontSize: "16px",
+            fontWeight: 800,
+          }}
         >
-          Next: Choose Group →
+          {saving ? (
+            <>
+              <Loader2 size={20} className="animate-spin" />
+              Saving...
+            </>
+          ) : (
+            "Next: Choose Group →"
+          )}
         </motion.button>
       </div>
     </div>

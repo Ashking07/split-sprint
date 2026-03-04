@@ -16,6 +16,7 @@ import {
   buildParticipantsByItem,
   parseResultToReceiptItems,
 } from "../lib/billConversion";
+import { hapticSuccess, hapticError } from "../lib/haptic";
 
 const INITIAL_STATE: Omit<AppState, "screen"> & { screen: Screen } = {
   screen: "home",
@@ -224,8 +225,10 @@ export const useBillStore = create<BillStore>()(
         try {
           const result = await apiParseReceipt({ imageBase64, currencyHint: "USD" });
           useBillStore.getState().applyParseResult(result, "vision", { imageBase64 });
+          hapticSuccess();
           return true;
         } catch {
+          hapticError();
           return false;
         }
       },
@@ -234,8 +237,10 @@ export const useBillStore = create<BillStore>()(
         try {
           const result = await apiParseReceipt({ pastedText, currencyHint: "USD" });
           useBillStore.getState().applyParseResult(result, "text", { pastedText });
+          hapticSuccess();
           return true;
         } catch {
+          hapticError();
           return false;
         }
       },
@@ -252,8 +257,10 @@ export const useBillStore = create<BillStore>()(
           await apiFinalizeBill(billId);
           set((s) => ({ ...s, currentBillId: null }));
           await useBillStore.getState().fetchHistory();
+          hapticSuccess();
           return billId;
         } catch {
+          hapticError();
           return null;
         }
       },

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Camera, Link, Sparkles, Link2, Check } from "lucide-react";
+import { hapticLight } from "../../lib/haptic";
 import { NavBar } from "../components/NavBar";
 import { Screen } from "../types";
 import { apiSplitwiseStatus, apiSplitwiseGroups } from "../../lib/api";
@@ -143,7 +144,10 @@ export function ImportReceipt({ navigate }: ImportReceiptProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          onClick={() => splitwiseConnected && navigate("camera")}
+          onClick={() => {
+            hapticLight();
+            if (splitwiseConnected) navigate("camera");
+          }}
           disabled={!splitwiseConnected}
           className="w-full rounded-2xl p-5 text-left"
           style={{
@@ -184,7 +188,10 @@ export function ImportReceipt({ navigate }: ImportReceiptProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          onClick={() => splitwiseConnected && navigate("paste")}
+          onClick={() => {
+            hapticLight();
+            if (splitwiseConnected) navigate("paste");
+          }}
           disabled={!splitwiseConnected}
           className="w-full rounded-2xl p-5 text-left"
           style={{

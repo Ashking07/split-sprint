@@ -1,19 +1,22 @@
-import React, { useEffect } from "react";
+import React, { useEffect, lazy, Suspense } from "react";
 import { MobileFrame } from "./components/MobileFrame";
 import { Home } from "./screens/Home";
 import { Login } from "./screens/Login";
 import { Signup } from "./screens/Signup";
-import { ImportReceipt } from "./screens/ImportReceipt";
-import { PasteReceipt } from "./screens/PasteReceipt";
-import { CameraCapture } from "./screens/CameraCapture";
-import { ReceiptReview } from "./screens/ReceiptReview";
-import { ChooseGroup } from "./screens/ChooseGroup";
-import { SplitSetup } from "./screens/SplitSetup";
-import { Confirmation } from "./screens/Confirmation";
-import { Success } from "./screens/Success";
-import { History } from "./screens/History";
-import { Integrations } from "./screens/Integrations";
 import { OAuthSplitwiseLanding } from "./screens/OAuthSplitwiseLanding";
+import type { Screen } from "./types";
+
+const ImportReceipt = lazy(() => import("./screens/ImportReceipt").then((m) => ({ default: m.ImportReceipt })));
+const PasteReceipt = lazy(() => import("./screens/PasteReceipt").then((m) => ({ default: m.PasteReceipt })));
+const CameraCapture = lazy(() => import("./screens/CameraCapture").then((m) => ({ default: m.CameraCapture })));
+const ReceiptReview = lazy(() => import("./screens/ReceiptReview").then((m) => ({ default: m.ReceiptReview })));
+import { ChooseGroup } from "./screens/ChooseGroup";
+const SplitSetup = lazy(() => import("./screens/SplitSetup").then((m) => ({ default: m.SplitSetup })));
+const Confirmation = lazy(() => import("./screens/Confirmation").then((m) => ({ default: m.Confirmation })));
+const Success = lazy(() => import("./screens/Success").then((m) => ({ default: m.Success })));
+const History = lazy(() => import("./screens/History").then((m) => ({ default: m.History })));
+const Integrations = lazy(() => import("./screens/Integrations").then((m) => ({ default: m.Integrations })));
+
 import type { Screen } from "./types";
 import { useBillStore } from "../store/billStore";
 import { useAuthStore } from "../store/authStore";
@@ -46,6 +49,16 @@ export default function App() {
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  // Prefetch groups and next screen chunks early in the flow
+  useEffect(() => {
+    if (screen === "import" || screen === "camera" || screen === "paste" || screen === "review") {
+      import("../lib/groupsCache").then((m) => m.prefetchGroups());
+    }
+    if (screen === "group") import("./screens/SplitSetup");
+    if (screen === "split") import("./screens/Confirmation");
+    if (screen === "confirm") import("./screens/Success");
+  }, [screen]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -182,20 +195,28 @@ export default function App() {
     }
   };
 
+  const screenFallback = (
+    <div className="flex items-center justify-center h-full">
+      <div className="w-8 h-8 rounded-full border-4 border-[#22C55E] border-t-transparent animate-spin" />
+    </div>
+  );
+
   return (
     <MobileFrame>
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={screen}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.2, ease: "easeInOut" }}
-          className="flex flex-col h-full"
-        >
-          {renderScreen()}
-        </motion.div>
-      </AnimatePresence>
+      <Suspense fallback={screenFallback}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={screen}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="flex flex-col h-full"
+          >
+            {renderScreen()}
+          </motion.div>
+        </AnimatePresence>
+      </Suspense>
     </MobileFrame>
   );
 }

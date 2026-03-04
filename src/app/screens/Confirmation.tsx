@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { motion } from "motion/react";
-import { ExternalLink, Copy, Check, Share2 } from "lucide-react";
+import { ExternalLink, Copy, Check, Share2, Loader2 } from "lucide-react";
 import { NavBar } from "../components/NavBar";
 import { ProgressStepper } from "../components/ProgressStepper";
 import { AppState, Screen } from "../types";
 import { MOCK_RECEIPT_ITEMS } from "../mockData";
 import { useBillStore } from "../../store/billStore";
 import { useAuthStore } from "../../store/authStore";
+import { hapticLight } from "../../lib/haptic";
 import { format } from "date-fns";
 import {
   generateSplitwiseSummary,
@@ -74,6 +75,7 @@ export function Confirmation({ state, setState, navigate }: ConfirmationProps) {
   const [copied, setCopied] = useState(false);
   const [splitwiseConnected, setSplitwiseConnected] = useState(false);
   const [creatingInSplitwise, setCreatingInSplitwise] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     apiSplitwiseStatus()
@@ -120,23 +122,30 @@ export function Confirmation({ state, setState, navigate }: ConfirmationProps) {
   };
 
   const handleCreate = async () => {
-    setState({ xp: state.xp + 25, streak: state.streak + 1 });
-    const billId = await saveBillAndFinalize();
-    if (billId) {
-      navigate("success");
+    if (creating) return;
+    setCreating(true);
+    try {
+      setState({ xp: state.xp + 25, streak: state.streak + 1 });
+      const billId = await saveBillAndFinalize();
+      if (billId) {
+        navigate("success");
+      }
+    } finally {
+      setCreating(false);
     }
   };
 
   const handleCreateInSplitwise = async () => {
-    let billId = useBillStore.getState().currentBillId;
-    if (!billId) {
-      billId = await saveBillAndFinalize();
-    } else {
-      await saveBillAndFinalize();
-    }
-    if (!billId) return;
+    if (creatingInSplitwise) return;
     setCreatingInSplitwise(true);
     try {
+      let billId = useBillStore.getState().currentBillId;
+      if (!billId) {
+        billId = await saveBillAndFinalize();
+      } else {
+        await saveBillAndFinalize();
+      }
+      if (!billId) return;
       const res = await apiSplitwiseCreateExpense(billId, selectedGroup?.id);
       setState({ xp: state.xp + 25, streak: state.streak + 1 });
       if (res.expenseUrl) {
@@ -530,21 +539,28 @@ export function Confirmation({ state, setState, navigate }: ConfirmationProps) {
       >
         {canCreateInSplitwise ? (
           <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={handleCreateInSplitwise}
+            whileTap={{ scale: creatingInSplitwise ? 1 : 0.97 }}
+            onClick={async () => {
+              hapticLight();
+              await handleCreateInSplitwise();
+            }}
             disabled={creatingInSplitwise}
             className="w-full py-4 rounded-2xl flex items-center justify-center gap-2"
             style={{
-              background: "linear-gradient(135deg, #22C55E, #16A34A)",
+              background: creatingInSplitwise ? "#9CA3AF" : "linear-gradient(135deg, #22C55E, #16A34A)",
               color: "white",
               fontSize: "16px",
               fontWeight: 800,
-              boxShadow: "0 8px 24px rgba(34,197,94,0.3)",
+              boxShadow: creatingInSplitwise ? "none" : "0 8px 24px rgba(34,197,94,0.3)",
             }}
           >
-            <ExternalLink size={18} color="white" />
-            <span>{creatingInSplitwise ? "Creating..." : "Create in Splitwise"}</span>
-            <span style={{ fontSize: "18px" }}>🚀</span>
+            {creatingInSplitwise ? (
+              <Loader2 size={18} color="white" className="animate-spin" />
+            ) : (
+              <ExternalLink size={18} color="white" />
+            )}
+            <span>{creatingInSplitwise ? "Creating in Splitwise..." : "Create in Splitwise"}</span>
+            {!creatingInSplitwise && <span style={{ fontSize: "18px" }}>🚀</span>}
           </motion.button>
         ) : !splitwiseConnected ? (
           <div className="space-y-2">
@@ -560,16 +576,30 @@ export function Confirmation({ state, setState, navigate }: ConfirmationProps) {
               Connect Splitwise
             </motion.button>
             <motion.button
-              whileTap={{ scale: 0.97 }}
+              whileTap={{ scale: creating ? 1 : 0.97 }}
               onClick={async () => {
+                hapticLight();
                 await handleCopySummary();
                 window.open(SPLITWISE_PLACEHOLDER_URL, "_blank");
-                handleCreate();
+                await handleCreate();
               }}
-              className="w-full py-3 rounded-2xl"
-              style={{ background: "#E5E7EB", color: "#6B7280", fontSize: "14px", fontWeight: 600 }}
+              disabled={creating}
+              className="w-full py-3 rounded-2xl flex items-center justify-center gap-2"
+              style={{
+                background: creating ? "#9CA3AF" : "#E5E7EB",
+                color: "#6B7280",
+                fontSize: "14px",
+                fontWeight: 600,
+              }}
             >
-              Copy summary & open Splitwise
+              {creating ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Copy summary & open Splitwise"
+              )}
             </motion.button>
           </div>
         ) : (
@@ -586,16 +616,30 @@ export function Confirmation({ state, setState, navigate }: ConfirmationProps) {
               Link Splitwise group
             </motion.button>
             <motion.button
-              whileTap={{ scale: 0.97 }}
+              whileTap={{ scale: creating ? 1 : 0.97 }}
               onClick={async () => {
+                hapticLight();
                 await handleCopySummary();
                 window.open(SPLITWISE_PLACEHOLDER_URL, "_blank");
-                handleCreate();
+                await handleCreate();
               }}
-              className="w-full py-3 rounded-2xl"
-              style={{ background: "#E5E7EB", color: "#6B7280", fontSize: "14px", fontWeight: 600 }}
+              disabled={creating}
+              className="w-full py-3 rounded-2xl flex items-center justify-center gap-2"
+              style={{
+                background: creating ? "#9CA3AF" : "#E5E7EB",
+                color: "#6B7280",
+                fontSize: "14px",
+                fontWeight: 600,
+              }}
             >
-              Copy summary & open Splitwise
+              {creating ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Copy summary & open Splitwise"
+              )}
             </motion.button>
           </div>
         )}

@@ -1,9 +1,10 @@
 import React, { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowLeft, RotateCcw, Check, Zap, Upload } from "lucide-react";
+import { ArrowLeft, RotateCcw, Check, Zap, Upload, Loader2 } from "lucide-react";
 import { Screen } from "../types";
 import { useBillStore } from "../../store/billStore";
 import { apiSplitwiseStatus } from "../../lib/api";
+import { hapticLight } from "../../lib/haptic";
 
 interface CameraCaptureProps {
   navigate: (screen: Screen) => void;
@@ -17,9 +18,10 @@ const PROCESSING_MESSAGES = [
 ];
 
 export function CameraCapture({ navigate }: CameraCaptureProps) {
-  const [phase, setPhase] = useState<"capture" | "processing">("capture");
+  const [phase, setPhase] = useState<"capture" | "preparing" | "processing">("capture");
   const [messageIdx, setMessageIdx] = useState(0);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [preparingMessage, setPreparingMessage] = useState("Loading image...");
   const [scanLine, setScanLine] = useState(0);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -114,6 +116,7 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
       const base64 = result.startsWith("data:") ? result.split(",")[1] : result;
       if (base64) {
         pendingBase64Ref.current = base64;
+        setPreparingMessage("Starting AI extraction...");
         setPhase("processing");
       }
     };
@@ -122,6 +125,8 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
 
   const handleCapture = async () => {
     if (cameraReady && videoRef.current && streamRef.current) {
+      setPhase("preparing");
+      setPreparingMessage("Capturing...");
       try {
         const video = videoRef.current;
         if (!video.videoWidth || !video.videoHeight) {
@@ -136,7 +141,12 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
         ctx.drawImage(video, 0, 0);
         canvas.toBlob(
           (blob) => {
-            if (blob) processImage(blob);
+            if (blob) {
+              setPreparingMessage("Preparing...");
+              processImage(blob);
+            } else {
+              setPhase("capture");
+            }
           },
           "image/jpeg",
           0.9
@@ -157,6 +167,10 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
     if (!file.type.startsWith("image/") && !isHeicFile) return;
     e.target.value = "";
 
+    setPhase("preparing");
+    setPreparingMessage(isHeicFile ? "Converting HEIC..." : "Loading image...");
+    setParseError(null);
+
     let blobToRead: Blob = file;
     if (isHeicFile) {
       try {
@@ -165,16 +179,41 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
       } catch (err) {
         console.error("HEIC conversion failed:", err);
         setParseError("Could not convert HEIC image. Try Settings → Camera → Formats → Most Compatible.");
+        setPhase("capture");
         return;
       }
     }
+    setPreparingMessage("Preparing...");
     processImage(blobToRead);
   };
 
   return (
     <div className="flex flex-col h-full bg-[#0D0D0D]">
       <AnimatePresence mode="wait">
-        {phase === "capture" ? (
+        {phase === "preparing" ? (
+          <motion.div
+            key="preparing"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex flex-col h-full items-center justify-center gap-4 px-8"
+          >
+            <motion.div
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 1, repeat: Infinity }}
+              style={{ fontSize: "48px" }}
+            >
+              📷
+            </motion.div>
+            <Loader2 size={32} color="#22C55E" className="animate-spin" />
+            <p style={{ fontSize: "16px", fontWeight: 700, color: "white", textAlign: "center" }}>
+              {preparingMessage}
+            </p>
+            <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.5)", textAlign: "center" }}>
+              Please wait...
+            </p>
+          </motion.div>
+        ) : phase === "capture" ? (
           <motion.div
             key="capture"
             initial={{ opacity: 0 }}
@@ -289,7 +328,10 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
                   className="hidden"
                 />
                 <button
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => {
+                    hapticLight();
+                    fileInputRef.current?.click();
+                  }}
                   className="flex items-center justify-center gap-2 mx-auto py-2 px-4 rounded-xl"
                   style={{
                     background: "rgba(255,255,255,0.15)",
@@ -317,7 +359,10 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
               {/* Shutter button */}
               <motion.button
                 whileTap={{ scale: 0.9 }}
-                onClick={handleCapture}
+                onClick={() => {
+                  hapticLight();
+                  handleCapture();
+                }}
                 className="w-20 h-20 rounded-full flex items-center justify-center"
                 style={{
                   background: "white",
