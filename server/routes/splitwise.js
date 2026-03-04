@@ -64,10 +64,17 @@ router.get("/connect", async (req, res) => {
     return res.status(500).json({ error: "Splitwise integration not configured" });
   }
   const returnTo = req.query?.returnTo || "integrations";
-  const origin = req.query?.origin || process.env.APP_ORIGIN || "http://localhost:5173";
+  let origin = (req.query?.origin || process.env.APP_ORIGIN || "http://localhost:5173").replace(/\/$/, "");
 
-  if (!isOriginAllowed(origin)) {
-    return res.status(400).json({ error: "Bad origin. Use http://localhost:5173 in dev." });
+  // Use APP_ORIGIN when client origin isn't in allowlist (preview URLs, PWA, etc.)
+  const appOrigin = process.env.APP_ORIGIN?.replace(/\/$/, "");
+  if (!isOriginAllowed(origin) && appOrigin) {
+    origin = appOrigin;
+  }
+  if (!isOriginAllowed(origin) && origin !== appOrigin) {
+    return res.status(400).json({
+      error: "Bad origin. Set ALLOWED_ORIGINS and APP_ORIGIN in Vercel to your app URL (e.g. https://split-sprint.vercel.app)",
+    });
   }
 
   const state = crypto.randomBytes(32).toString("hex");

@@ -1,9 +1,6 @@
 /**
- * Opens Splitwise OAuth flow. Uses popup on iOS PWA to avoid redirect leaving the app context.
- * Falls back to same-tab when popup is blocked.
+ * Opens Splitwise OAuth flow. Same-tab redirect for reliability across all platforms.
  */
-
-const SPLITWISE_CONNECTED = "splitsprint_splitwise_connected";
 
 export function openSplitwiseConnect(returnTo: string): void {
   const token = localStorage.getItem("splitsprint-token");
@@ -18,46 +15,6 @@ export function openSplitwiseConnect(returnTo: string): void {
     returnTo,
     origin: window.location.origin,
   });
-  const url = `${base || ""}/api/splitwise/connect?${params.toString()}`;
-
-  // On iOS PWA, same-tab redirect often opens Safari and doesn't return to the app.
-  // Try popup first - it keeps the flow in a separate window that we can close.
-  const isStandalone = /iPhone|iPad|iPod/.test(navigator.userAgent) &&
-    (window.navigator as { standalone?: boolean }).standalone === true;
-
-  if (isStandalone) {
-    const w = window.open(url, "splitwise_oauth", "width=500,height=600,scrollbars=yes");
-    if (w) {
-      let checkClosed: ReturnType<typeof setInterval>;
-      const onMessage = (e: MessageEvent) => {
-        if (e.origin !== window.location.origin) return;
-        if (e.data?.type === SPLITWISE_CONNECTED) {
-          window.removeEventListener("message", onMessage);
-          clearInterval(checkClosed);
-          import("./groupsCache").then((m) => m.prefetchGroups());
-          window.location.href = `/?screen=${encodeURIComponent(e.data.returnTo || returnTo)}`;
-        }
-      };
-      window.addEventListener("message", onMessage);
-      checkClosed = setInterval(() => {
-        if (w.closed) {
-          window.removeEventListener("message", onMessage);
-          clearInterval(checkClosed);
-          window.location.href = `/?screen=${encodeURIComponent(returnTo)}`;
-        }
-      }, 500);
-    } else {
-      // Popup blocked - fall back to same-tab
-      window.location.href = url;
-    }
-  } else {
-    window.location.href = url;
-  }
-}
-
-export function notifySplitwiseConnected(returnTo: string): void {
-  if (window.opener) {
-    window.opener.postMessage({ type: SPLITWISE_CONNECTED, returnTo }, window.location.origin);
-    window.close();
-  }
+  const url = `${base}/api/splitwise/connect?${params.toString()}`;
+  window.location.href = url;
 }
