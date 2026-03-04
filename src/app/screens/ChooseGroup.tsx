@@ -16,7 +16,7 @@ import {
 } from "../../lib/api";
 import { useBillStore } from "../../store/billStore";
 import { hapticLight } from "../../lib/haptic";
-import { getCachedGroups, setCachedGroups } from "../../lib/groupsCache";
+import { getCachedGroups, setCachedGroups, getCachedSplitwise } from "../../lib/groupsCache";
 
 interface ChooseGroupProps {
   state: AppState;
@@ -44,11 +44,13 @@ export function ChooseGroup({ state, setState, navigate }: ChooseGroupProps) {
   const [showAddFromSplitwise, setShowAddFromSplitwise] = useState(false);
 
   useEffect(() => {
+    // Use cache immediately (including empty) - show UI right away
     const cached = getCachedGroups();
-    if (cached?.length) {
+    if (cached !== null) {
       setGroups(cached);
       setLoading(false);
     }
+    // Refresh in background
     apiGetGroups()
       .then((fresh) => {
         setCachedGroups(fresh);
@@ -93,6 +95,12 @@ export function ChooseGroup({ state, setState, navigate }: ChooseGroupProps) {
   };
 
   useEffect(() => {
+    // Use Splitwise cache for instant display, then refresh in background
+    const swCache = getCachedSplitwise();
+    if (swCache) {
+      setSplitwiseConnected(swCache.connected);
+      setSplitwiseGroups(swCache.groups);
+    }
     loadSplitwiseGroups();
   }, []);
 

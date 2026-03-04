@@ -8,7 +8,6 @@ import { mergeDuplicates, needsReview } from "../../lib/mergeDuplicates";
 import { MOCK_RECEIPT_ITEMS, MOCK_TAX } from "../mockData";
 import { useBillStore } from "../../store/billStore";
 import { hapticLight } from "../../lib/haptic";
-import { prefetchGroups } from "../../lib/groupsCache";
 
 interface ReceiptReviewProps {
   state: AppState;
@@ -101,10 +100,6 @@ export function ReceiptReview({ state, setState, navigate }: ReceiptReviewProps)
   };
   const receiptImageUrl = useBillStore((s) => s.receiptImageUrl);
   const saveDraftFromReview = useBillStore((s) => s.saveDraftFromReview);
-
-  useEffect(() => {
-    prefetchGroups();
-  }, []);
 
   // Debounced save to API (draft persistence)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);

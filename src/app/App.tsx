@@ -50,15 +50,15 @@ export default function App() {
     checkAuth();
   }, [checkAuth]);
 
-  // Prefetch groups and next screen chunks early in the flow
+  // Prefetch groups + Splitwise early so Choose Group is instant
   useEffect(() => {
-    if (screen === "import" || screen === "camera" || screen === "paste" || screen === "review") {
+    if (user && (screen === "home" || screen === "import" || screen === "camera" || screen === "paste" || screen === "review")) {
       import("../lib/groupsCache").then((m) => m.prefetchGroups());
     }
     if (screen === "group") import("./screens/SplitSetup");
     if (screen === "split") import("./screens/Confirmation");
     if (screen === "confirm") import("./screens/Success");
-  }, [screen]);
+  }, [screen, user]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
