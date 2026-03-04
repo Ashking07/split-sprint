@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { NavBar } from "../components/NavBar";
@@ -89,6 +89,11 @@ export function SplitSetup({ state, setState, navigate }: SplitSetupProps) {
   };
 
   const [continuing, setContinuing] = useState(false);
+
+  // Warm API before user navigates to confirm (Create in Splitwise)
+  useEffect(() => {
+    fetch("/api/health").catch(() => {});
+  }, []);
 
   const handleContinue = () => {
     if (continuing) return;

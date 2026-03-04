@@ -118,9 +118,26 @@ export default function App() {
 
   useEffect(() => {
     if (!hydrated || !user) return;
-    // Skip when on confirm screen — avoid competing with expense creation (GET /api/bills is slow)
-    if (screen === "confirm") return;
-    fetchHistory();
+    // Only fetch history when viewing home or history — avoid 504s from repeated /bills on every screen change
+    if (screen !== "home" && screen !== "history") return;
+
+    let cancelled = false;
+    const run = async () => {
+      // Warm API before heavy /bills request (matches hard-refresh behavior)
+      try {
+        await Promise.race([
+          fetch("/api/health"),
+          new Promise<void>((r) => setTimeout(r, 3000)),
+        ]);
+      } catch {
+        /* ignore */
+      }
+      if (!cancelled) fetchHistory();
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
   }, [hydrated, user, fetchHistory, screen]);
 
   const state = {
