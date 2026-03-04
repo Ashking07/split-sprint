@@ -567,13 +567,21 @@ router.post("/expenses/create", authMiddleware, async (req, res) => {
 
     const splitMode = bill.splitMode || "equal";
     const payerId = req.userId;
-    let payerSwId = conn?.splitwiseAccountId;
-    const useSplitwiseMembers = !!swMembers?.length;
 
-    if (useSplitwiseMembers && !payerSwId && conn?.splitwiseEmail) {
+    // Always fetch current Splitwise user — ensures correct payer (token owner = person who paid)
+    let payerSwId = null;
+    try {
+      const currentUserRes = await splitwiseFetch(req.userId, "/get_current_user");
+      payerSwId = currentUserRes?.user?.id ?? conn?.splitwiseAccountId;
+    } catch (err) {
+      payerSwId = conn?.splitwiseAccountId;
+    }
+    if (!payerSwId && conn?.splitwiseEmail && swMembers?.length) {
       const payerMember = swMembers.find((m) => m.email?.toLowerCase() === conn.splitwiseEmail?.toLowerCase());
       if (payerMember) payerSwId = payerMember.id;
     }
+
+    const useSplitwiseMembers = !!swMembers?.length;
 
     // Ensure payer is first in list — Splitwise shows first user with paid_share as payer
     const payerPid = useSplitwiseMembers
@@ -637,8 +645,9 @@ router.post("/expenses/create", authMiddleware, async (req, res) => {
       // Fallback: if payer wasn't identified in loop, find payer by Splitwise ID and assign paid_share
       if (!paidShareAssigned && idx > 0) {
         if (payerSwId != null) {
+          const payerSwIdNum = Number(payerSwId);
           for (let i = 0; i < idx; i++) {
-            if (usersFlat[`users__${i}__user_id`] === payerSwId) {
+            if (Number(usersFlat[`users__${i}__user_id`]) === payerSwIdNum) {
               usersFlat[`users__${i}__paid_share`] = cost;
               paidShareAssigned = true;
               break;
