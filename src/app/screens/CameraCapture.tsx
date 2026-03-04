@@ -24,6 +24,7 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
   const [preparingMessage, setPreparingMessage] = useState("Loading image...");
   const [scanLine, setScanLine] = useState(0);
   const [cameraReady, setCameraReady] = useState(false);
+  const [videoHasFrames, setVideoHasFrames] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -49,21 +50,38 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
           setCameraError("Camera not supported");
           return;
         }
-        stream = await navigator.mediaDevices.getUserMedia({
+        // Try ideal constraints first, fallback to permissive for mobile compatibility
+        const constraints: MediaStreamConstraints = {
           video: {
             facingMode: "environment",
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
+            width: { ideal: 1280, min: 640 },
+            height: { ideal: 720, min: 480 },
           },
           audio: false,
-        });
+        };
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        }
         streamRef.current = stream;
         const video = videoRef.current;
         if (video) {
           video.srcObject = stream;
-          await video.play();
+          // Don't call play() - use autoplay attribute; play() can throw NotAllowedError on iOS
+          video.muted = true;
+          video.playsInline = true;
+          video.setAttribute("playsinline", "");
+          video.setAttribute("webkit-playsinline", "");
+          const playPromise = video.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(() => {
+              // Autoplay may be blocked; video can still show when user interacts
+            });
+          }
         }
         setCameraReady(true);
+        setVideoHasFrames(false);
         setCameraError(null);
       } catch (err) {
         console.warn("Camera access failed, falling back to file input:", err);
@@ -125,14 +143,14 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
 
   const handleCapture = async () => {
     if (cameraReady && videoRef.current && streamRef.current) {
+      const video = videoRef.current;
+      if (!video.videoWidth || !video.videoHeight) {
+        setParseError("Camera not ready. Wait a moment or tap Upload photo.");
+        return;
+      }
       setPhase("preparing");
       setPreparingMessage("Capturing...");
       try {
-        const video = videoRef.current;
-        if (!video.videoWidth || !video.videoHeight) {
-          setParseError("Camera not ready. Wait a moment and try again.");
-          return;
-        }
         const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
@@ -248,32 +266,35 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
               </div>
             </div>
 
-            {/* Camera viewfinder */}
-            <div className="flex-1 flex items-center justify-center px-6 relative overflow-hidden min-h-0">
+            {/* Camera viewfinder - explicit min-height for mobile */}
+            <div
+              className="flex-1 relative overflow-hidden min-h-[280px]"
+              style={{ minHeight: "50vh" }}
+            >
               {/* Live camera or fallback background */}
               {cameraReady ? (
                 <video
                   ref={videoRef}
+                  autoPlay
                   playsInline
                   muted
                   className="absolute inset-0 w-full h-full object-cover"
+                  onLoadedData={() => setVideoHasFrames(true)}
+                  onError={() => setVideoHasFrames(false)}
                 />
               ) : !cameraError ? (
-                <div className="absolute inset-0 flex items-center justify-center" style={{ background: "#1a1a1a" }}>
-                  <div className="text-center text-white/60 text-sm">Starting camera...</div>
+                <div className="absolute inset-0 flex items-center justify-center bg-black">
+                  <div className="text-center text-white/70 text-sm">Starting camera...</div>
                 </div>
               ) : (
-                <div
-                  className="absolute inset-0 rounded-2xl overflow-hidden"
-                  style={{ background: "linear-gradient(160deg, #2a2a2a, #1a1a1a)" }}
-                />
+                <div className="absolute inset-0 flex items-center justify-center bg-[#1a1a1a]" />
               )}
 
-              {/* Dark vignette */}
+              {/* Subtle vignette - lighter so it doesn't obscure the view */}
               <div
                 className="absolute inset-0 pointer-events-none"
                 style={{
-                  background: "radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.5) 100%)",
+                  background: "radial-gradient(ellipse 70% 70% at center, transparent 50%, rgba(0,0,0,0.25) 100%)",
                 }}
               />
 
@@ -315,10 +336,18 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
 
               {/* Guide text & fallback */}
               <div
-                className="absolute bottom-4 left-0 right-0 text-center space-y-2"
-                style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)" }}
+                className="absolute bottom-4 left-0 right-0 text-center space-y-2 px-4"
+                style={{ fontSize: "12px", color: "rgba(255,255,255,0.85)" }}
               >
-                <div>{cameraReady ? "Align receipt in frame, then tap capture" : "Or upload a photo"}</div>
+                <div>
+                  {cameraError
+                    ? "Camera unavailable. Upload a photo of your receipt."
+                    : cameraReady
+                      ? videoHasFrames
+                        ? "Align receipt in frame, then tap the white button"
+                        : "Camera starting..."
+                      : "Starting camera..."}
+                </div>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -332,16 +361,16 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
                     hapticLight();
                     fileInputRef.current?.click();
                   }}
-                  className="flex items-center justify-center gap-2 mx-auto py-2 px-4 rounded-xl"
+                  className="flex items-center justify-center gap-2 mx-auto py-2.5 px-5 rounded-xl"
                   style={{
-                    background: "rgba(255,255,255,0.15)",
+                    background: cameraError ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.2)",
                     color: "white",
-                    fontSize: "13px",
+                    fontSize: "14px",
                     fontWeight: 600,
                   }}
                 >
-                  <Upload size={16} />
-                  Upload photo instead
+                  <Upload size={18} />
+                  {cameraError ? "Upload receipt photo" : "Upload photo instead"}
                 </button>
               </div>
             </div>
