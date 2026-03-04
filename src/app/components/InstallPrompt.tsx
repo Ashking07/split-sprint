@@ -65,59 +65,64 @@ export function InstallPrompt() {
     <>
       {show && shouldShowInstallPrompt() && (
         <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -10 }}
-        className="fixed top-0 left-0 right-0 z-50 px-4 pt-4 pb-2 safe-area-inset-top"
-        style={{
-          background: "linear-gradient(180deg, #1A1A2E 0%, rgba(26,26,46,0.95) 100%)",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "rgba(34,197,94,0.2)" }}
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            className="fixed top-0 left-0 right-0 z-50 px-4 pt-3 pb-4 safe-area-inset-top"
           >
-            <Download size={24} color="#22C55E" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 style={{ fontSize: "15px", fontWeight: 800, color: "white" }}>
-              Add SplitSprint to Home Screen
-            </h3>
-            <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", marginTop: "2px" }}>
-              {isIOS()
-                ? "Tap Share, then 'Add to Home Screen' for quick access"
-                : "Install for a faster, app-like experience"}
-            </p>
-          </div>
-          <button
-            onClick={handleDismiss}
-            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: "rgba(255,255,255,0.1)" }}
-            aria-label="Dismiss"
-          >
-            <X size={16} color="white" />
-          </button>
-        </div>
-        <div className="flex gap-2 mt-3">
-          <button
-            onClick={handleAdd}
-            className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2"
-            style={{
-              background: "linear-gradient(135deg, #22C55E, #16A34A)",
-              color: "white",
-              fontSize: "14px",
-              fontWeight: 700,
-            }}
-          >
-            <Download size={18} />
-            {isIOS() ? "Show me how" : "Add to Home Screen"}
-          </button>
-        </div>
-      </motion.div>
-    </AnimatePresence>
+            <div
+              className="mx-auto max-w-lg rounded-2xl overflow-hidden shadow-xl border border-white/10 dark:border-white/5"
+              style={{
+                background: "linear-gradient(145deg, #1e293b 0%, #0f172a 100%)",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.24), 0 0 0 1px rgba(255,255,255,0.06)",
+              }}
+            >
+              <div className="px-4 pt-4 pb-3">
+                <div className="flex items-start gap-3">
+                  <div
+                    className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(34,197,94,0.25), rgba(22,163,74,0.15))",
+                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1)",
+                    }}
+                  >
+                    <Download size={22} className="text-emerald-400" strokeWidth={2.5} />
+                  </div>
+                  <div className="flex-1 min-w-0 pt-0.5">
+                    <h3 className="text-[15px] font-semibold text-white tracking-tight">
+                      Add to Home Screen
+                    </h3>
+                    <p className="text-[13px] text-white/75 mt-0.5 leading-snug">
+                      {isIOS()
+                        ? "Tap Share → Add to Home Screen for quick access"
+                        : "Install for a faster, app-like experience"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleDismiss}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                    aria-label="Dismiss"
+                  >
+                    <X size={18} strokeWidth={2} />
+                  </button>
+                </div>
+                <button
+                  onClick={handleAdd}
+                  className="w-full mt-3 py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-semibold text-[15px] text-white transition-all active:scale-[0.98]"
+                  style={{
+                    background: "linear-gradient(135deg, #22C55E 0%, #16A34A 100%)",
+                    boxShadow: "0 2px 12px rgba(34,197,94,0.35)",
+                  }}
+                >
+                  <Download size={18} strokeWidth={2.5} />
+                  {isIOS() ? "Show me how" : "Add to Home Screen"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
       )}
 
       <AnimatePresence>

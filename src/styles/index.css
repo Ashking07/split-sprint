@@ -4,5 +4,5 @@
 
 /* Add space for install prompt banner when visible */
 body.splitsprint-install-prompt-visible #root {
-  padding-top: 140px;
+  padding-top: 130px;
 }
