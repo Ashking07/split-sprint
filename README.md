@@ -68,6 +68,7 @@ Copy `.env.example` to `.env` and fill in your values. See `.env.example` for re
 
 If you see **504 Gateway Timeout** or **FUNCTION_INVOCATION_TIMEOUT**:
 
-- **MongoDB region**: Ensure your Atlas cluster is in a region close to Vercel (e.g. AWS `us-west` for `sfo1`).
-- **Cron warm-up**: A cron job hits `/api/health` once daily (6 AM UTC) to reduce cold starts. On Pro, you can use `*/5 * * * *` for every 5 minutes.
-- **First load**: After idle, the first request may timeout. Refresh or retry in a few seconds.
+- **Auto-retry**: The app retries once (after 2.5s) on 504. If it still fails, refresh the page.
+- **MongoDB region**: In [Atlas](https://cloud.mongodb.com) → Cluster → Edit → choose **AWS us-west-1** (or region closest to Vercel `sfo1`). This often fixes slow cold starts.
+- **Cron warm-up**: A cron job hits `/api/health` once daily (6 AM UTC). On Pro, use `*/5 * * * *` for every 5 minutes.
+- **Vercel Pro**: 60s timeout (vs 10s on Hobby) helps with MongoDB cold starts.

@@ -11,12 +11,25 @@ function getHeaders(): HeadersInit {
   return headers;
 }
 
+async function fetchWithRetry(
+  url: string,
+  init?: RequestInit,
+  retries = 1
+): Promise<Response> {
+  let res = await fetch(url, init);
+  if (res.status === 504 && retries > 0) {
+    await new Promise((r) => setTimeout(r, 2500));
+    res = await fetch(url, init);
+  }
+  return res;
+}
+
 async function parseJson(res: Response) {
   const text = await res.text();
   if (!text) {
     const msg =
       res.status === 504
-        ? "Server is starting up. Please try again in a few seconds."
+        ? "Server is starting up. Please refresh the page and try again."
         : res.status === 404
           ? "API not found. Run 'vercel dev' for full stack, or check deployment."
           : "Empty response from server";
@@ -35,7 +48,7 @@ async function parseJson(res: Response) {
 }
 
 export async function apiLogin(email: string, password: string) {
-  const res = await fetch(`${API_BASE}/api/auth/login`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/auth/login`, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify({ email, password }),
@@ -46,7 +59,7 @@ export async function apiLogin(email: string, password: string) {
 }
 
 export async function apiSignup(email: string, password: string, name?: string) {
-  const res = await fetch(`${API_BASE}/api/auth/signup`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/auth/signup`, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify({ email, password, name }),
@@ -57,7 +70,7 @@ export async function apiSignup(email: string, password: string, name?: string) 
 }
 
 export async function apiMe() {
-  const res = await fetch(`${API_BASE}/api/me`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/me`, {
     headers: getHeaders(),
   });
   if (res.status === 401) return null;
@@ -67,7 +80,7 @@ export async function apiMe() {
 }
 
 export async function apiGetHistory() {
-  const res = await fetch(`${API_BASE}/api/bills`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/bills`, {
     headers: getHeaders(),
   });
   const data = await parseJson(res);
@@ -77,7 +90,7 @@ export async function apiGetHistory() {
 }
 
 export async function apiGetBill(id: string) {
-  const res = await fetch(`${API_BASE}/api/bills/${id}`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/bills/${id}`, {
     headers: getHeaders(),
   });
   const data = await parseJson(res);
@@ -99,7 +112,7 @@ export async function apiCreateBill(payload: {
   splitMode?: "equal" | "itemized";
   participantsByItem?: Record<string, string[]>;
 }) {
-  const res = await fetch(`${API_BASE}/api/bills`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/bills`, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify(payload),
@@ -124,7 +137,7 @@ export async function apiUpdateBill(
     status?: "draft" | "sent";
   }
 ) {
-  const res = await fetch(`${API_BASE}/api/bills/${id}`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/bills/${id}`, {
     method: "PATCH",
     headers: getHeaders(),
     body: JSON.stringify(payload),
@@ -135,7 +148,7 @@ export async function apiUpdateBill(
 }
 
 export async function apiFinalizeBill(id: string) {
-  const res = await fetch(`${API_BASE}/api/bills/${id}/finalize`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/bills/${id}/finalize`, {
     method: "POST",
     headers: getHeaders(),
   });
@@ -145,7 +158,7 @@ export async function apiFinalizeBill(id: string) {
 }
 
 export async function apiGetGroups() {
-  const res = await fetch(`${API_BASE}/api/groups`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/groups`, {
     headers: getHeaders(),
   });
   const data = await parseJson(res);
@@ -155,7 +168,7 @@ export async function apiGetGroups() {
 }
 
 export async function apiCreateGroup(payload: { name: string; memberIds?: string[] }) {
-  const res = await fetch(`${API_BASE}/api/groups`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/groups`, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify(payload),
@@ -170,7 +183,7 @@ export async function apiCreateGroupFromSplitwise(payload: {
   splitwiseGroupId: number;
   splitwiseMembers: { id: number; email?: string; first_name?: string; last_name?: string }[];
 }) {
-  const res = await fetch(`${API_BASE}/api/groups/from-splitwise`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/groups/from-splitwise`, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify(payload),
@@ -181,7 +194,7 @@ export async function apiCreateGroupFromSplitwise(payload: {
 }
 
 export async function apiAddGroupMember(groupId: string, email: string) {
-  const res = await fetch(`${API_BASE}/api/groups/${groupId}`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/groups/${groupId}`, {
     method: "PATCH",
     headers: getHeaders(),
     body: JSON.stringify({ addMemberEmail: email }),
@@ -196,7 +209,7 @@ export async function apiParseReceipt(payload: {
   pastedText?: string;
   currencyHint?: string;
 }) {
-  const res = await fetch(`${API_BASE}/api/receipts/parse`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/receipts/parse`, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify(payload),
@@ -208,7 +221,7 @@ export async function apiParseReceipt(payload: {
 }
 
 export async function apiSplitwiseStatus() {
-  const res = await fetch(`${API_BASE}/api/splitwise/status`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/splitwise/status`, {
     headers: getHeaders(),
     cache: 'no-store',
   });
@@ -223,7 +236,7 @@ export async function apiSplitwiseConnect() {
 }
 
 export async function apiSplitwiseGroups() {
-  const res = await fetch(`${API_BASE}/api/splitwise/groups`, { headers: getHeaders() });
+  const res = await fetchWithRetry(`${API_BASE}/api/splitwise/groups`, { headers: getHeaders() });
   const data = await parseJson(res);
   if (res.status === 401) throw new Error("Unauthorized");
   if (!res.ok) throw new Error(data.error || "Request failed");
@@ -231,7 +244,7 @@ export async function apiSplitwiseGroups() {
 }
 
 export async function apiSplitwiseDisconnect() {
-  const res = await fetch(`${API_BASE}/api/splitwise/disconnect`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/splitwise/disconnect`, {
     method: "POST",
     headers: getHeaders(),
   });
@@ -244,7 +257,7 @@ export async function apiSplitwiseCreateGroup(
   groupId: string,
   additionalMembers?: { email?: string; first_name?: string; last_name?: string; id?: number }[]
 ) {
-  const res = await fetch(`${API_BASE}/api/splitwise/groups/create`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/splitwise/groups/create`, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify({ groupId, additionalMembers: additionalMembers || [] }),
@@ -255,7 +268,7 @@ export async function apiSplitwiseCreateGroup(
 }
 
 export async function apiSplitwiseCreateExpense(billId: string, groupId?: string) {
-  const res = await fetch(`${API_BASE}/api/splitwise/expenses/create`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/splitwise/expenses/create`, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify({ billId, ...(groupId && { groupId }) }),
@@ -266,7 +279,7 @@ export async function apiSplitwiseCreateExpense(billId: string, groupId?: string
 }
 
 export async function apiUpdateGroupSplitwise(groupId: string, splitwiseGroupId: number | null) {
-  const res = await fetch(`${API_BASE}/api/groups/${groupId}`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/groups/${groupId}`, {
     method: "PATCH",
     headers: getHeaders(),
     body: JSON.stringify({ splitwiseGroupId }),
@@ -277,7 +290,7 @@ export async function apiUpdateGroupSplitwise(groupId: string, splitwiseGroupId:
 }
 
 export async function apiGetGroup(id: string) {
-  const res = await fetch(`${API_BASE}/api/groups/${id}`, {
+  const res = await fetchWithRetry(`${API_BASE}/api/groups/${id}`, {
     headers: getHeaders(),
   });
   const data = await parseJson(res);
