@@ -257,6 +257,7 @@ router.get("/debug", authMiddleware, async (req, res) => {
 });
 
 router.get("/status", authMiddleware, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
   try {
     await connectDB();
     const userId = mongoose.Types.ObjectId.isValid(req.userId)

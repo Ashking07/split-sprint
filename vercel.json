@@ -5,9 +5,21 @@
   "functions": {
     "api/index.js": {
       "maxDuration": 15
+    },
+    "api/splitwise/connect.js": {
+      "maxDuration": 15
+    },
+    "api/splitwise/callback.js": {
+      "maxDuration": 15
+    },
+    "api/splitwise/status.js": {
+      "maxDuration": 10
     }
   },
   "rewrites": [
+    { "source": "/api/splitwise/connect", "destination": "/api/splitwise/connect" },
+    { "source": "/api/splitwise/callback", "destination": "/api/splitwise/callback" },
+    { "source": "/api/splitwise/status", "destination": "/api/splitwise/status" },
     { "source": "/api/(.*)", "destination": "/api?path=$1" },
     { "source": "/((?!api/|assets/|manifest|sw|registerSW).*)", "destination": "/index.html" }
   ]
