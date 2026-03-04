@@ -35,11 +35,6 @@ function LoadingSpinner() {
 
 export default function App() {
   const hydrated = useStoresHydrated();
-  if (!hydrated) return <LoadingSpinner />;
-
-  if (typeof window !== "undefined" && window.location.pathname === "/oauth/splitwise") {
-    return <OAuthSplitwiseLanding />;
-  }
   const user = useAuthStore((s) => s.user);
   const isChecked = useAuthStore((s) => s.isChecked);
   const checkAuth = useAuthStore((s) => s.checkAuth);
@@ -60,21 +55,25 @@ export default function App() {
     streak,
   } = useBillStore();
 
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+  const fetchHistory = useBillStore((s) => s.fetchHistory);
 
-  // Prefetch groups + Splitwise early so Choose Group is instant
   useEffect(() => {
-    if (user && (screen === "home" || screen === "import" || screen === "camera" || screen === "paste" || screen === "review")) {
+    if (!hydrated) return;
+    checkAuth();
+  }, [hydrated, checkAuth]);
+
+  useEffect(() => {
+    if (!hydrated || !user) return;
+    if (screen === "home" || screen === "import" || screen === "camera" || screen === "paste" || screen === "review") {
       import("../lib/groupsCache").then((m) => m.prefetchGroups());
     }
     if (screen === "group") import("./screens/SplitSetup");
     if (screen === "split") import("./screens/Confirmation");
     if (screen === "confirm") import("./screens/Success");
-  }, [screen, user]);
+  }, [hydrated, screen, user]);
 
   useEffect(() => {
+    if (!hydrated) return;
     const params = new URLSearchParams(window.location.search);
     const err = params.get("splitwise_error");
     if (err === "not_detected" || err === "verify_failed") {
@@ -97,17 +96,17 @@ export default function App() {
       navigate(screenParam as Screen);
       window.history.replaceState({}, "", "/");
     }
-  }, [navigate]);
-
-  const fetchHistory = useBillStore((s) => s.fetchHistory);
+  }, [hydrated, navigate]);
 
   useEffect(() => {
+    if (!hydrated) return;
     if (user && (screen === "login" || screen === "signup")) {
       navigate("home");
     }
-  }, [user, screen, navigate]);
+  }, [hydrated, user, screen, navigate]);
 
   useEffect(() => {
+    if (!hydrated) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("splitwise") === "error") {
       const msg = params.get("message") || "Connection failed";
@@ -115,13 +114,12 @@ export default function App() {
       navigate("integrations");
       setTimeout(() => alert(decodeURIComponent(msg)), 100);
     }
-  }, [navigate]);
+  }, [hydrated, navigate]);
 
   useEffect(() => {
-    if (user) {
-      fetchHistory();
-    }
-  }, [user, fetchHistory]);
+    if (!hydrated || !user) return;
+    fetchHistory();
+  }, [hydrated, user, fetchHistory]);
 
   const state = {
     screen,
@@ -136,6 +134,12 @@ export default function App() {
     xp,
     streak,
   };
+
+  if (!hydrated) return <LoadingSpinner />;
+
+  if (typeof window !== "undefined" && window.location.pathname === "/oauth/splitwise") {
+    return <OAuthSplitwiseLanding />;
+  }
 
   if (!isChecked) {
     return (
