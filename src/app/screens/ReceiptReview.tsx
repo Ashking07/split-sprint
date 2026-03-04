@@ -72,6 +72,11 @@ export function ReceiptReview({ state, setState, navigate }: ReceiptReviewProps)
   const uncertainCount = items.filter(isUncertain).length;
   const filteredItems = filter === "needs_review" ? items.filter(isUncertain) : items;
 
+  // Warm API when review mounts (after GPT parse) — ensures group/split/confirm steps are fast
+  useEffect(() => {
+    fetch("/api/health").catch(() => {});
+  }, []);
+
   const addItem = () => {
     const newItem: ReceiptItem = {
       id: `manual-${Date.now()}`,
