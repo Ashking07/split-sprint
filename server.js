@@ -1,13 +1,13 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import { connectDB } from "./api/lib/mongodb.js";
-import { User } from "./api/models/User.js";
-import { signToken, verifyToken } from "./api/lib/auth.js";
-import groupsRouter from "./api/routes/groups.js";
-import billsRouter from "./api/routes/bills.js";
-import receiptsRouter from "./api/routes/receipts.js";
-import splitwiseRouter from "./api/routes/splitwise.js";
+import { connectDB } from "./server/lib/mongodb.js";
+import { User } from "./server/models/User.js";
+import { signToken, verifyToken } from "./server/lib/auth.js";
+import groupsRouter from "./server/routes/groups.js";
+import billsRouter from "./server/routes/bills.js";
+import receiptsRouter from "./server/routes/receipts.js";
+import splitwiseRouter from "./server/routes/splitwise.js";
 
 const app = express();
 app.use(cors());
@@ -99,7 +99,7 @@ app.get("/api/history", async (req, res) => {
     if (!token) return res.status(401).json({ error: "Unauthorized" });
     const userId = await verifyToken(token);
     if (!userId) return res.status(401).json({ error: "Invalid token" });
-    const { Bill } = await import("./api/models/Bill.js");
+    const { Bill } = await import("./server/models/Bill.js");
     const mongoose = (await import("mongoose")).default;
     const bills = await Bill.aggregate([
       { $match: { ownerId: new mongoose.Types.ObjectId(userId) } },
