@@ -581,6 +581,20 @@ router.post("/expenses/create", authMiddleware, async (req, res) => {
       const usersFlat = {};
       let idx = 0;
       let paidShareAssigned = false;
+
+      // Pre-fetch data once (not per-participant)
+      let ourUsersLookup = null;
+      let swMembersFromApi = null;
+      if (!useSplitwiseMembers) {
+        const [ourUsersResult, swGroupsRes] = await Promise.all([
+          User.find({ _id: { $in: participantIds } }).select("email").lean(),
+          splitwiseFetch(req.userId, "/get_groups"),
+        ]);
+        ourUsersLookup = ourUsersResult;
+        const swGroup = (swGroupsRes.groups || []).find((g) => g.id === group.splitwiseGroupId);
+        swMembersFromApi = swGroup?.members || [];
+      }
+
       for (const pid of participantIds) {
         const share = shares.find((s) => s.participantId === pid);
         const amountCents = share?.amountCents ?? 0;
@@ -594,12 +608,8 @@ router.post("/expenses/create", authMiddleware, async (req, res) => {
         let swUserId;
         if (useSplitwiseMembers && pid.startsWith("sw:")) {
           swUserId = parseInt(pid.slice(3), 10);
-        } else if (!useSplitwiseMembers) {
-          const ourUsers = await User.find({ _id: { $in: participantIds } }).select("email").lean();
-          const swGroupsRes = await splitwiseFetch(req.userId, "/get_groups");
-          const swGroup = (swGroupsRes.groups || []).find((g) => g.id === group.splitwiseGroupId);
-          const swMembersFromApi = swGroup?.members || [];
-          const user = ourUsers.find((u) => u._id.toString() === pid);
+        } else if (ourUsersLookup && swMembersFromApi) {
+          const user = ourUsersLookup.find((u) => u._id.toString() === pid);
           const swMember = user
             ? swMembersFromApi.find((m) => m.email?.toLowerCase() === user.email?.toLowerCase())
             : null;

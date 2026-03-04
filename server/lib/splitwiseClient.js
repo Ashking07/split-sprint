@@ -31,16 +31,29 @@ export async function splitwiseFetch(userId, path, options = {}) {
   const url = path.startsWith("http") ? path : `${SPLITWISE_BASE}${path.startsWith("/") ? path : `/${path}`}`;
   const scheme = (conn.splitwiseTokenType || "Bearer").toLowerCase() === "bearer" ? "Bearer" : (conn.splitwiseTokenType || "Bearer");
   const authValue = `${scheme} ${String(conn.splitwiseAccessToken).trim()}`;
+  const method = options.method || "GET";
   const headers = {
     Authorization: authValue,
-    "Content-Type": "application/json",
     ...options.headers,
   };
 
+  let bodyStr;
+  if (options.body && method !== "GET") {
+    if (path.includes("create_expense") || path.includes("create_group")) {
+      headers["Content-Type"] = "application/x-www-form-urlencoded";
+      bodyStr = new URLSearchParams(
+        Object.entries(options.body).map(([k, v]) => [k, String(v)])
+      ).toString();
+    } else {
+      headers["Content-Type"] = "application/json";
+      bodyStr = JSON.stringify(options.body);
+    }
+  }
+
   const res = await fetch(url, {
-    method: options.method || "GET",
+    method,
     headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    body: bodyStr,
   });
 
   const text = await res.text();
