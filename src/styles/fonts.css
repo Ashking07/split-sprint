@@ -1,0 +1,6 @@
+/* iOS-first: System font (SF Pro) on Apple devices, Inter elsewhere */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+* {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Inter", sans-serif;
+}

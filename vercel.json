@@ -1,0 +1,8 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": null,
+  "rewrites": [
+    { "source": "/((?!api/|assets/|manifest|sw|registerSW).*)", "destination": "/index.html" }
+  ]
+}
