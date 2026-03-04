@@ -109,6 +109,7 @@ async function getUserIdForConnect(req) {
 }
 
 router.get("/connect", async (req, res) => {
+  try {
   const userId = await getUserIdForConnect(req);
   if (!userId) {
     return res.status(401).json({ error: "Unauthorized. Log in and try again." });
@@ -121,7 +122,6 @@ router.get("/connect", async (req, res) => {
   const returnTo = req.query?.returnTo || "integrations";
   let origin = (req.query?.origin || process.env.APP_ORIGIN || "http://localhost:5173").replace(/\/$/, "");
 
-  // Use APP_ORIGIN when client origin isn't in allowlist (preview URLs, PWA, etc.)
   const appOrigin = process.env.APP_ORIGIN?.replace(/\/$/, "");
   if (!isOriginAllowed(origin) && appOrigin) {
     origin = appOrigin;
@@ -149,7 +149,18 @@ router.get("/connect", async (req, res) => {
     state,
     ...(SCOPES && { scope: SCOPES }),
   });
-  res.redirect(`${SPLITWISE_AUTH_URL}?${params.toString()}`);
+  const redirectUrl = `${SPLITWISE_AUTH_URL}?${params.toString()}`;
+
+  if (req.query?.dry_run === "1") {
+    return res.json({ redirectUrl, oauthRedirectUri, origin, userId: String(userId) });
+  }
+
+  console.log("[Splitwise] Redirecting to:", redirectUrl.slice(0, 120));
+  res.redirect(redirectUrl);
+  } catch (err) {
+    console.error("[Splitwise] Connect error:", err);
+    return res.status(500).json({ error: err.message, stack: err.stack?.split("\n").slice(0, 3) });
+  }
 });
 
 router.get("/callback", async (req, res) => {
