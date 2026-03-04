@@ -74,7 +74,12 @@ export function Success({ state, setState, navigate }: SuccessProps) {
   };
 
   return (
-    <div className="flex flex-col h-full items-center px-5 pt-6 overflow-y-auto">
+    <div
+      className="flex flex-col h-full items-center px-5 overflow-y-auto"
+      style={{
+        paddingTop: "max(1.5rem, calc(env(safe-area-inset-top) + 1rem))",
+      }}
+    >
       {/* Success animation */}
       <motion.div
         initial={{ scale: 0, rotate: -20 }}
@@ -212,7 +217,12 @@ export function Success({ state, setState, navigate }: SuccessProps) {
       </motion.div>
 
       {/* CTAs */}
-      <div className="flex flex-col gap-2.5 w-full pb-4">
+      <div
+        className="flex flex-col gap-2.5 w-full"
+        style={{
+          paddingBottom: "max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem))",
+        }}
+      >
         <motion.a
           href={SPLITWISE_PLACEHOLDER_URL}
           target="_blank"
