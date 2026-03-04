@@ -78,7 +78,11 @@ router.get("/connect", async (req, res) => {
   }
 
   const state = crypto.randomBytes(32).toString("hex");
-  const oauthRedirectUri = `${origin.replace(/\/$/, "")}/api/splitwise/callback`;
+  // Use SPLITWISE_REDIRECT_URI in production (https) so we match the exact URL in Splitwise
+  const oauthRedirectUri =
+    redirectUri && redirectUri.startsWith("https://")
+      ? redirectUri.replace(/\/$/, "")
+      : `${origin.replace(/\/$/, "")}/api/splitwise/callback`;
 
   await connectDB();
   await SplitwiseOAuthState.create({ state, userId: String(userId), origin, returnTo, oauthRedirectUri });
