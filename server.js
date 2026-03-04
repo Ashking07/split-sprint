@@ -123,47 +123,8 @@ app.get("/api/me", async (req, res) => {
   }
 });
 
-// Legacy history endpoint - redirect to bills for backward compatibility
-app.get("/api/history", async (req, res) => {
-  try {
-    await connectDB();
-    const auth = req.headers.authorization;
-    const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
-    if (!token) return res.status(401).json({ error: "Unauthorized" });
-    const userId = await verifyToken(token);
-    if (!userId) return res.status(401).json({ error: "Invalid token" });
-    const { Bill } = await import("./server/models/Bill.js");
-    const mongoose = (await import("mongoose")).default;
-    const bills = await Bill.aggregate([
-      { $match: { ownerId: new mongoose.Types.ObjectId(userId) } },
-      { $sort: { updatedAt: -1 } },
-      { $limit: 100 },
-      {
-        $lookup: {
-          from: "groups",
-          localField: "groupId",
-          foreignField: "_id",
-          as: "groupIdDoc",
-          pipeline: [{ $project: { name: 1 } }],
-        },
-      },
-      { $addFields: { groupName: { $arrayElemAt: ["$groupIdDoc.name", 0] } } },
-    ]);
-    const history = bills.map((b) => ({
-      id: b._id.toString(),
-      title: b.merchant || (b.items?.[0]?.name || "Bill") + (b.items?.length > 1 ? ` +${b.items.length - 1} more` : ""),
-      date: b.createdAt ? new Date(b.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "",
-      total: (b.totalCents || 0) / 100,
-      group: b.groupName || "Unknown",
-      status: b.status || "draft",
-      emoji: "🧾",
-    }));
-    return res.status(200).json(history);
-  } catch (err) {
-    console.error("History error:", err);
-    return res.status(500).json({ error: "Request failed" });
-  }
-});
+// Legacy history endpoint - redirects to bills router
+app.get("/api/history", (req, res) => res.redirect(307, "/api/bills"));
 
 app.use("/api/groups", groupsRouter);
 app.use("/api/bills", billsRouter);

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import mongoose from "mongoose";
 import { connectDB } from "../lib/mongodb.js";
 import { authMiddleware } from "../lib/auth.js";
 import { Bill } from "../models/Bill.js";
@@ -52,35 +53,21 @@ router.post("/", async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     await connectDB();
-    // Use aggregation to avoid sort memory limit on Atlas M0 (allowDiskUse not supported)
-    const mongoose = (await import("mongoose")).default;
-    const pipeline = [
-      { $match: { ownerId: new mongoose.Types.ObjectId(req.userId) } },
-      { $sort: { updatedAt: -1 } },
-      { $limit: 100 },
-      {
-        $lookup: {
-          from: "groups",
-          localField: "groupId",
-          foreignField: "_id",
-          as: "groupIdDoc",
-          pipeline: [{ $project: { name: 1 } }],
-        },
-      },
-      {
-        $addFields: {
-          groupName: { $arrayElemAt: ["$groupIdDoc.name", 0] },
-        },
-      },
-    ];
-    const bills = await Bill.aggregate(pipeline).hint({ ownerId: 1, updatedAt: -1 });
+    const bills = await Bill.find(
+      { ownerId: req.userId },
+      { merchant: 1, items: { $slice: 1 }, totalCents: 1, status: 1, groupId: 1, createdAt: 1, updatedAt: 1 }
+    )
+      .sort({ updatedAt: -1 })
+      .limit(50)
+      .populate("groupId", "name")
+      .lean();
 
     const history = bills.map((b) => ({
       id: b._id.toString(),
-      title: b.merchant || (b.items?.[0]?.name || "Bill") + (b.items?.length > 1 ? ` +${b.items.length - 1} more` : ""),
+      title: b.merchant || (b.items?.[0]?.name || "Bill"),
       date: b.createdAt ? new Date(b.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "",
       total: (b.totalCents || 0) / 100,
-      group: b.groupName || "Unknown",
+      group: b.groupId?.name || "Unknown",
       status: b.status || "draft",
       emoji: "🧾",
     }));
