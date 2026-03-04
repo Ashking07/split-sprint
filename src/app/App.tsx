@@ -20,9 +20,23 @@ const Integrations = lazy(() => import("./screens/Integrations").then((m) => ({ 
 import type { Screen } from "./types";
 import { useBillStore } from "../store/billStore";
 import { useAuthStore } from "../store/authStore";
+import { useStoresHydrated } from "../lib/useStoresHydrated";
 import { AnimatePresence, motion } from "motion/react";
 
+function LoadingSpinner() {
+  return (
+    <MobileFrame>
+      <div className="flex items-center justify-center h-full">
+        <div className="w-8 h-8 rounded-full border-4 border-[#22C55E] border-t-transparent animate-spin" />
+      </div>
+    </MobileFrame>
+  );
+}
+
 export default function App() {
+  const hydrated = useStoresHydrated();
+  if (!hydrated) return <LoadingSpinner />;
+
   if (typeof window !== "undefined" && window.location.pathname === "/oauth/splitwise") {
     return <OAuthSplitwiseLanding />;
   }
