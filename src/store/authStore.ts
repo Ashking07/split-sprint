@@ -92,8 +92,7 @@ export const useAuthStore = create<AuthStore>()(
               }
             })
             .catch(() => {
-              localStorage.removeItem("splitsprint-token");
-              set({ token: null, user: null });
+              // 504/500/server errors: keep user, don't log out
             });
           return;
         }
@@ -106,8 +105,8 @@ export const useAuthStore = create<AuthStore>()(
           }
           set({ token, user, isChecked: true });
         } catch {
-          localStorage.removeItem("splitsprint-token");
-          set({ token: null, user: null, isChecked: true });
+          // 504/500/server errors: keep cached state if any, don't log out
+          set({ isChecked: true });
         }
       },
     }),

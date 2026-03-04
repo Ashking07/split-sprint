@@ -46,7 +46,11 @@ export function OAuthSplitwiseLanding() {
       try {
         let st = await apiSplitwiseStatus();
         if (!st.connected) {
-          await new Promise((r) => setTimeout(r, 500));
+          await new Promise((r) => setTimeout(r, 1500));
+          st = await apiSplitwiseStatus();
+        }
+        if (!st.connected) {
+          await new Promise((r) => setTimeout(r, 1500));
           st = await apiSplitwiseStatus();
         }
         if (st.connected) {
