@@ -19,14 +19,15 @@ const SCOPES = process.env.SPLITWISE_SCOPES || "";
 
 const ALLOWED_ORIGINS_RAW = (process.env.ALLOWED_ORIGINS || "http://localhost:5173")
   .split(",")
-  .map((o) => o.trim())
+  .map((o) => o.trim().replace(/\/$/, ""))
   .filter(Boolean);
 const ALLOWED_ORIGINS = new Set(ALLOWED_ORIGINS_RAW);
 
 function isOriginAllowed(origin) {
-  if (ALLOWED_ORIGINS.has(origin)) return true;
-  if (ALLOWED_ORIGINS.has("http://*:5173") && /^https?:\/\/[^/]+:5173\/?$/.test(origin)) return true;
-  if (ALLOWED_ORIGINS.has("http://*:5174") && /^https?:\/\/[^/]+:5174\/?$/.test(origin)) return true;
+  const o = (origin || "").replace(/\/$/, "");
+  if (ALLOWED_ORIGINS.has(o)) return true;
+  if (ALLOWED_ORIGINS.has("http://*:5173") && /^https?:\/\/[^/]+:5173\/?$/.test(o)) return true;
+  if (ALLOWED_ORIGINS.has("http://*:5174") && /^https?:\/\/[^/]+:5174\/?$/.test(o)) return true;
   return false;
 }
 
