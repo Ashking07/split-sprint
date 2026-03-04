@@ -72,9 +72,18 @@ export function ReceiptReview({ state, setState, navigate }: ReceiptReviewProps)
   const uncertainCount = items.filter(isUncertain).length;
   const filteredItems = filter === "needs_review" ? items.filter(isUncertain) : items;
 
-  // Warm API when review mounts (after GPT parse) — ensures group/split/confirm steps are fast
+  // Hard refresh on review page to warm API — avoids 504s on subsequent steps
   useEffect(() => {
-    fetch("/api/health").catch(() => {});
+    const key = "splitsprint-review-reloaded";
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+    window.location.reload();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      sessionStorage.removeItem("splitsprint-review-reloaded");
+    };
   }, []);
 
   const addItem = () => {
