@@ -256,8 +256,9 @@ export const useBillStore = create<BillStore>()(
         try {
           await apiFinalizeBill(billId);
           set((s) => ({ ...s, currentBillId: null }));
-          await useBillStore.getState().fetchHistory();
           hapticSuccess();
+          // Refresh history in background — don't block the flow if it fails
+          useBillStore.getState().fetchHistory().catch(() => {});
           return billId;
         } catch {
           hapticError();
