@@ -575,6 +575,17 @@ router.post("/expenses/create", authMiddleware, async (req, res) => {
       if (payerMember) payerSwId = payerMember.id;
     }
 
+    // Ensure payer is first in list — Splitwise shows first user with paid_share as payer
+    const payerPid = useSplitwiseMembers
+      ? (payerSwId ? `sw:${payerSwId}` : null)
+      : String(payerId);
+    if (payerPid && participantIds.length > 1) {
+      const payerIdx = participantIds.findIndex((id) => String(id) === String(payerPid));
+      if (payerIdx > 0) {
+        participantIds = [participantIds[payerIdx], ...participantIds.filter((_, i) => i !== payerIdx)];
+      }
+    }
+
     let body;
     {
       const { shares } = computeSettlementSnapshot(bill, participantIds, payerId);
@@ -600,8 +611,8 @@ router.post("/expenses/create", authMiddleware, async (req, res) => {
         const amountCents = share?.amountCents ?? 0;
         const owedShare = (amountCents / 100).toFixed(2);
         const isPayer = useSplitwiseMembers
-          ? payerSwId && pid === `sw:${payerSwId}`
-          : pid === payerId;
+          ? payerSwId != null && String(pid) === `sw:${payerSwId}`
+          : String(pid) === String(payerId);
         let paidShare = isPayer ? cost : "0.00";
         if (isPayer) paidShareAssigned = true;
 
@@ -623,8 +634,20 @@ router.post("/expenses/create", authMiddleware, async (req, res) => {
           idx++;
         }
       }
+      // Fallback: if payer wasn't identified in loop, find payer by Splitwise ID and assign paid_share
       if (!paidShareAssigned && idx > 0) {
-        usersFlat["users__0__paid_share"] = cost;
+        if (payerSwId != null) {
+          for (let i = 0; i < idx; i++) {
+            if (usersFlat[`users__${i}__user_id`] === payerSwId) {
+              usersFlat[`users__${i}__paid_share`] = cost;
+              paidShareAssigned = true;
+              break;
+            }
+          }
+        }
+        if (!paidShareAssigned) {
+          usersFlat["users__0__paid_share"] = cost;
+        }
       }
       body = {
         cost,
