@@ -42,19 +42,54 @@ function getRequestOrigin(req) {
 
 // Diagnostic endpoint: GET /api/splitwise/config - returns config status (no secrets)
 router.get("/config", (_req, res) => {
+  const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(",").map(o => o.trim());
+  const appOrigin = process.env.APP_ORIGIN || null;
+  const redirectUri = process.env.SPLITWISE_REDIRECT_URI || null;
   res.json({
     configured:
       !!process.env.SPLITWISE_CLIENT_ID &&
       !!process.env.SPLITWISE_CLIENT_SECRET &&
-      !!process.env.SPLITWISE_REDIRECT_URI,
+      !!redirectUri,
     hasClientId: !!process.env.SPLITWISE_CLIENT_ID,
     hasClientSecret: !!process.env.SPLITWISE_CLIENT_SECRET,
-    hasRedirectUri: !!process.env.SPLITWISE_REDIRECT_URI,
-    appOrigin: process.env.APP_ORIGIN || null,
-    redirectUriPreview: process.env.SPLITWISE_REDIRECT_URI
-      ? `${process.env.SPLITWISE_REDIRECT_URI.slice(0, 50)}...`
-      : null,
+    hasRedirectUri: !!redirectUri,
+    redirectUri: redirectUri,
+    appOrigin: appOrigin,
+    allowedOrigins: allowedOrigins,
+    allowedContainsApp: appOrigin ? allowedOrigins.some(o => o.replace(/\/$/, "") === appOrigin.replace(/\/$/, "")) : false,
   });
+});
+
+router.get("/test-connect", async (req, res) => {
+  try {
+    const userId = await getUserIdForConnect(req);
+    const clientId = process.env.SPLITWISE_CLIENT_ID;
+    const redirectUri = process.env.SPLITWISE_REDIRECT_URI;
+    const appOrigin = process.env.APP_ORIGIN?.replace(/\/$/, "");
+    const origin = (req.query?.origin || appOrigin || "").replace(/\/$/, "");
+
+    await connectDB();
+    const dbOk = true;
+
+    const wouldRedirectTo = redirectUri && redirectUri.startsWith("https://")
+      ? redirectUri.replace(/\/$/, "")
+      : `${origin}/api/splitwise/callback`;
+
+    res.json({
+      userId: userId || null,
+      tokenProvided: !!(req.query?.token || req.headers.authorization),
+      clientIdSet: !!clientId,
+      redirectUri,
+      appOrigin,
+      originFromQuery: req.query?.origin || null,
+      resolvedOrigin: origin,
+      originAllowed: isOriginAllowed(origin),
+      wouldRedirectTo,
+      dbConnected: dbOk,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 async function getUserIdForConnect(req) {
