@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./app/App.tsx";
 import { InstallPrompt } from "./app/components/InstallPrompt";
+import { ErrorBoundary } from "./app/components/ErrorBoundary";
 import "./styles/index.css";
 import { setDeferredPrompt } from "./lib/installPrompt";
 
@@ -11,9 +12,9 @@ window.addEventListener("beforeinstallprompt", (e) => {
 });
 
 createRoot(document.getElementById("root")!).render(
-  <>
+  <ErrorBoundary>
     <InstallPrompt />
     <App />
-  </>
+  </ErrorBoundary>
 );
   

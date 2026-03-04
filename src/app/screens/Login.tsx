@@ -12,8 +12,10 @@ export function Login({ onSignup }: LoginProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const login = useAuthStore((s) => s.login);
   const isLoading = useAuthStore((s) => s.isLoading);
+  const isDisabled = isLoading || submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,10 +24,15 @@ export function Login({ onSignup }: LoginProps) {
       setError("Email and password required");
       return;
     }
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await login(email, password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      const msg = err instanceof Error ? err.message : "Login failed";
+      setError(msg.includes("504") || msg.includes("500") ? "Server is busy. Please try again in a moment." : msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -108,7 +115,7 @@ export function Login({ onSignup }: LoginProps) {
 
         <motion.button
           type="submit"
-          disabled={isLoading}
+          disabled={isDisabled}
           whileTap={{ scale: 0.98 }}
           onClick={() => hapticLight()}
           className="w-full py-4 rounded-2xl flex items-center justify-center gap-2 mt-2"
@@ -119,7 +126,7 @@ export function Login({ onSignup }: LoginProps) {
             fontWeight: 800,
           }}
         >
-          {isLoading ? "Signing in..." : "Sign in"}
+          {isDisabled ? "Signing in..." : "Sign in"}
           <ArrowRight size={18} color="white" />
         </motion.button>
       </motion.form>

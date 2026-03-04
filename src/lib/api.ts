@@ -30,9 +30,11 @@ async function parseJson(res: Response) {
     const msg =
       res.status === 504
         ? "Server is starting up. Please refresh the page and try again."
-        : res.status === 404
-          ? "API not found. Run 'vercel dev' for full stack, or check deployment."
-          : "Empty response from server";
+        : res.status >= 500
+          ? "Server error. Please try again in a moment."
+          : res.status === 404
+            ? "API not found. Run 'vercel dev' for full stack, or check deployment."
+            : "Empty response from server";
     throw new Error(msg);
   }
   try {
@@ -40,10 +42,10 @@ async function parseJson(res: Response) {
   } catch {
     if (text.trimStart().startsWith("<")) {
       throw new Error(
-        "API not found (got HTML). Run 'vercel dev' for full stack with API."
+        res.status >= 500 ? "Server error. Please try again in a moment." : "API not found (got HTML)."
       );
     }
-    throw new Error(`Invalid response: ${text.slice(0, 80)}`);
+    throw new Error(res.status >= 500 ? "Server error. Please try again in a moment." : `Invalid response: ${text.slice(0, 80)}`);
   }
 }
 
