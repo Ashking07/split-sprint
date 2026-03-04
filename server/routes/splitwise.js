@@ -31,12 +31,31 @@ function isOriginAllowed(origin) {
 }
 
 function getRequestOrigin(req) {
+  const appOrigin = process.env.APP_ORIGIN?.replace(/\/$/, "");
   const host = req.get("x-forwarded-host") || req.get("host") || "";
   const proto = req.get("x-forwarded-proto") || "http";
-  if (!host) return getAppOrigin();
+  if (!host && appOrigin) return appOrigin;
+  if (!host) return appOrigin || "http://localhost:5173";
   const origin = `${proto}://${host}`.replace(/\/$/, "");
   return origin;
 }
+
+// Diagnostic endpoint: GET /api/splitwise/config - returns config status (no secrets)
+router.get("/config", (_req, res) => {
+  res.json({
+    configured:
+      !!process.env.SPLITWISE_CLIENT_ID &&
+      !!process.env.SPLITWISE_CLIENT_SECRET &&
+      !!process.env.SPLITWISE_REDIRECT_URI,
+    hasClientId: !!process.env.SPLITWISE_CLIENT_ID,
+    hasClientSecret: !!process.env.SPLITWISE_CLIENT_SECRET,
+    hasRedirectUri: !!process.env.SPLITWISE_REDIRECT_URI,
+    appOrigin: process.env.APP_ORIGIN || null,
+    redirectUriPreview: process.env.SPLITWISE_REDIRECT_URI
+      ? `${process.env.SPLITWISE_REDIRECT_URI.slice(0, 50)}...`
+      : null,
+  });
+});
 
 async function getUserIdForConnect(req) {
   const auth = req.headers.authorization;
@@ -590,9 +609,5 @@ router.post("/expenses/create", authMiddleware, async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 });
-
-function getAppOrigin() {
-  return process.env.APP_ORIGIN || "http://localhost:5173";
-}
 
 export default router;
