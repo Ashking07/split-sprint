@@ -17,6 +17,7 @@ import {
 import { useBillStore } from "../../store/billStore";
 import { hapticLight } from "../../lib/haptic";
 import { getCachedGroups, setCachedGroups, getCachedSplitwise } from "../../lib/groupsCache";
+import { openSplitwiseConnect } from "../../lib/splitwiseConnect";
 
 interface ChooseGroupProps {
   state: AppState;
@@ -276,16 +277,7 @@ export function ChooseGroup({ state, setState, navigate }: ChooseGroupProps) {
               Connect to sync expenses and see your Splitwise groups.
             </p>
             <button
-              onClick={() => {
-                const token = localStorage.getItem("splitsprint-token");
-                const base = import.meta.env.VITE_API_URL || "";
-                if (token) {
-                  const params = new URLSearchParams({ token, returnTo: "group", origin: window.location.origin });
-                  window.location.href = `${base}/api/splitwise/connect?${params.toString()}`;
-                } else {
-                  alert("Please log in first.");
-                }
-              }}
+              onClick={() => openSplitwiseConnect("group")}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
               style={{
                 background: "linear-gradient(135deg, #10B981, #059669)",

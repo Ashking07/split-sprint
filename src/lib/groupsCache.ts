@@ -1,6 +1,11 @@
 /**
  * Cache for groups and Splitwise data to speed up the Choose Group step.
- * Prefetch early (import, camera, paste, review) so data is ready when user navigates.
+ *
+ * PREFETCH STRATEGY:
+ * - We prefetch ONLY when the user is already connected to Splitwise (apiSplitwiseStatus().connected).
+ * - We never prefetch Splitwise groups before connection - we can't, there's no data.
+ * - prefetchGroups() runs when screen is home, import, camera, paste, or review.
+ * - After user connects Splitwise (OAuth callback), we call prefetchGroups() so groups are ready.
  */
 
 import type { Group } from "../app/types";

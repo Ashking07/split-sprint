@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from "react";
 import { MobileFrame } from "../components/MobileFrame";
 import { useAuthStore } from "../../store/authStore";
 import { apiSplitwiseStatus } from "../../lib/api";
+import { notifySplitwiseConnected } from "../../lib/splitwiseConnect";
+import { prefetchGroups } from "../../lib/groupsCache";
 import type { Screen } from "../types";
 
 const VALID_RETURN_TO: Screen[] = [
@@ -35,6 +37,12 @@ export function OAuthSplitwiseLanding() {
     const run = async () => {
       hasRun.current = true;
 
+      // If we're in a popup (opened from iOS PWA), notify opener and close - no API call needed
+      if (window.opener) {
+        notifySplitwiseConnected(screen);
+        return;
+      }
+
       const token = typeof localStorage !== "undefined" ? localStorage.getItem("splitsprint-token") : null;
       if (!token) {
         window.location.replace("/");
@@ -48,6 +56,7 @@ export function OAuthSplitwiseLanding() {
           st = await apiSplitwiseStatus();
         }
         if (st.connected) {
+          prefetchGroups(); // Prefetch groups + Splitwise now that user just connected
           window.location.replace(`/?screen=${encodeURIComponent(screen)}`);
           return;
         }

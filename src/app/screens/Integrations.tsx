@@ -4,6 +4,7 @@ import { Link2, Unlink } from "lucide-react";
 import { NavBar } from "../components/NavBar";
 import { Screen } from "../types";
 import { apiSplitwiseStatus, apiSplitwiseDisconnect, apiSplitwiseGroups } from "../../lib/api";
+import { openSplitwiseConnect } from "../../lib/splitwiseConnect";
 
 interface IntegrationsProps {
   navigate: (screen: Screen) => void;
@@ -34,16 +35,7 @@ export function Integrations({ navigate }: IntegrationsProps) {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleConnect = () => {
-    const token = localStorage.getItem("splitsprint-token");
-    const base = import.meta.env.VITE_API_URL || "";
-    if (token) {
-      const params = new URLSearchParams({ token, returnTo: "integrations", origin: window.location.origin });
-      window.location.href = `${base}/api/splitwise/connect?${params.toString()}`;
-    } else {
-      alert("Please log in first.");
-    }
-  };
+  const handleConnect = () => openSplitwiseConnect("integrations");
 
   const handleDisconnect = async () => {
     if (!confirm("Disconnect Splitwise? You can reconnect anytime.")) return;

@@ -5,6 +5,7 @@ import { hapticLight } from "../../lib/haptic";
 import { NavBar } from "../components/NavBar";
 import { Screen } from "../types";
 import { apiSplitwiseStatus, apiSplitwiseGroups } from "../../lib/api";
+import { openSplitwiseConnect } from "../../lib/splitwiseConnect";
 
 interface ImportReceiptProps {
   navigate: (screen: Screen) => void;
@@ -29,16 +30,7 @@ export function ImportReceipt({ navigate }: ImportReceiptProps) {
       .finally(() => setSwLoading(false));
   }, []);
 
-  const handleConnectSplitwise = () => {
-    const token = localStorage.getItem("splitsprint-token");
-    const base = import.meta.env.VITE_API_URL || "";
-    if (token) {
-      const params = new URLSearchParams({ token, returnTo: "import", origin: window.location.origin });
-      window.location.href = `${base}/api/splitwise/connect?${params.toString()}`;
-    } else {
-      alert("Please log in first.");
-    }
-  };
+  const handleConnectSplitwise = () => openSplitwiseConnect("import");
 
   return (
     <div className="flex flex-col h-full">
