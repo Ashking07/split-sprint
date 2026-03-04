@@ -35,6 +35,16 @@ app.get("/api/health", (_req, res) => {
   connectDB().catch(() => {});
   res.status(200).json({ ok: true });
 });
+app.get("/api/debug/db", async (_req, res) => {
+  try {
+    const start = Date.now();
+    await connectDB();
+    const ms = Date.now() - start;
+    res.json({ ok: true, ms, readyState: (await import("mongoose")).default.connection.readyState });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message, stack: err.stack?.split("\n").slice(0, 5) });
+  }
+});
 // Receipt images as base64 can be ~5MB; default 100kb is too small
 app.use(express.json({ limit: "6mb" }));
 
