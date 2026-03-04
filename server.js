@@ -11,20 +11,22 @@ import splitwiseRouter from "./server/routes/splitwise.js";
 
 const app = express();
 
-// Vercel rewrite sends /api/:path* to /api?path=:path - restore req.url for Express routing
-app.use((req, res, next) => {
-  try {
-    const idx = req.url.indexOf("?");
-    if (idx >= 0) {
-      const params = new URLSearchParams(req.url.slice(idx + 1));
-      const path = params.get("path");
-      if (path) {
-        params.delete("path");
-        const qs = params.toString();
-        req.url = "/api/" + path.replace(/^\//, "") + (qs ? "?" + qs : "");
-      }
-    }
-  } catch (_) {}
+app.set("trust proxy", 1);
+
+// Vercel rewrite: /api/splitwise/callback?code=...&state=... → /api?path=splitwise/callback&code=...&state=...
+// Restore req.url from req.query, preserving code/state and all other params (critical for OAuth callback)
+app.use((req, _res, next) => {
+  const p = req.query?.path;
+  if (!p) return next();
+
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(req.query)) {
+    if (k === "path") continue;
+    if (Array.isArray(v)) v.forEach((x) => params.append(k, String(x)));
+    else if (v != null) params.append(k, String(v));
+  }
+  const qs = params.toString();
+  req.url = `/api/${p.replace(/^\//, "")}${qs ? `?${qs}` : ""}`;
   next();
 });
 

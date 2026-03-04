@@ -117,6 +117,7 @@ router.get("/connect", async (req, res) => {
 });
 
 router.get("/callback", async (req, res) => {
+  console.log("[Splitwise] CALLBACK QUERY", Object.keys(req.query || {}));
   const { code, state } = req.query;
   const clientId = process.env.SPLITWISE_CLIENT_ID;
   const clientSecret = process.env.SPLITWISE_CLIENT_SECRET;

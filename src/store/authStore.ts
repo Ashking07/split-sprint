@@ -14,6 +14,7 @@ interface AuthStore {
   user: User | null;
   isLoading: boolean;
   isChecked: boolean;
+  hasHydrated: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => void;
@@ -27,6 +28,7 @@ export const useAuthStore = create<AuthStore>()(
       user: null,
       isLoading: false,
       isChecked: false,
+      hasHydrated: false,
 
       login: async (email, password) => {
         set({ isLoading: true });
@@ -109,6 +111,20 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
     }),
-    { name: "splitsprint-auth", partialize: (s) => ({ token: s.token, user: s.user }) }
+    {
+      name: "splitsprint-auth",
+      partialize: (s) => ({ token: s.token, user: s.user }), // hasHydrated not persisted
+      onRehydrateStorage: () => (state) => {
+        if (state?.token) {
+          localStorage.setItem("splitsprint-token", state.token);
+        }
+      },
+    }
   )
 );
+
+useAuthStore.persist.onFinishHydration(() => {
+  const { token } = useAuthStore.getState();
+  if (token) localStorage.setItem("splitsprint-token", token);
+  useAuthStore.setState({ hasHydrated: true });
+});

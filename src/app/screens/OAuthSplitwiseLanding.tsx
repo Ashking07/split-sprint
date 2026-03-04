@@ -20,6 +20,7 @@ const VALID_RETURN_TO: Screen[] = [
 export function OAuthSplitwiseLanding() {
   const checkAuth = useAuthStore((s) => s.checkAuth);
   const isChecked = useAuthStore((s) => s.isChecked);
+  const hasHydrated = useAuthStore((s) => s.hasHydrated);
   const hasRun = useRef(false);
 
   useEffect(() => {
@@ -27,7 +28,7 @@ export function OAuthSplitwiseLanding() {
   }, [checkAuth]);
 
   useEffect(() => {
-    if (!isChecked || hasRun.current) return;
+    if (!hasHydrated || !isChecked || hasRun.current) return;
 
     const params = new URLSearchParams(window.location.search);
     const returnTo = params.get("returnTo") || "integrations";
@@ -60,7 +61,7 @@ export function OAuthSplitwiseLanding() {
     };
 
     run();
-  }, [isChecked]);
+  }, [hasHydrated, isChecked]);
 
   return (
     <MobileFrame>
