@@ -2,44 +2,50 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "../store/authStore";
 import { useBillStore } from "../store/billStore";
 
-function safeHasHydrated(store: { persist?: { hasHydrated?: () => boolean } }) {
-  try {
-    return store?.persist?.hasHydrated?.() ?? false;
-  } catch {
-    return false;
-  }
-}
-
 /**
- * Waits for Zustand persist stores to rehydrate before rendering.
- * Prevents "Cannot read properties of undefined (reading 'payload')" race on first load.
+ * With skipHydration: true, we manually rehydrate to avoid the "payload" race.
+ * Waits for both stores to finish before rendering.
  */
 export function useStoresHydrated(): boolean {
-  const [hydrated, setHydrated] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return safeHasHydrated(useAuthStore) && safeHasHydrated(useBillStore);
-  });
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    if (hydrated) return;
+    if (typeof window === "undefined") return;
+
+    let done = false;
     const check = () => {
-      if (safeHasHydrated(useAuthStore) && safeHasHydrated(useBillStore)) {
+      if (done) return;
+      if (useAuthStore.persist.hasHydrated() && useBillStore.persist.hasHydrated()) {
+        done = true;
         setHydrated(true);
       }
     };
-    try {
-      const unsubAuth = useAuthStore.persist?.onFinishHydration?.(check);
-      const unsubBill = useBillStore.persist?.onFinishHydration?.(check);
-      check();
-      return () => {
-        unsubAuth?.();
-        unsubBill?.();
-      };
-    } catch {
-      setHydrated(true);
-      return () => {};
-    }
-  }, [hydrated]);
+
+    const unsubAuth = useAuthStore.persist.onFinishHydration(check);
+    const unsubBill = useBillStore.persist.onFinishHydration(check);
+
+    Promise.all([
+      useAuthStore.persist.rehydrate(),
+      useBillStore.persist.rehydrate(),
+    ])
+      .then(check)
+      .catch(() => {
+        if (!done) setHydrated(true);
+      });
+
+    const t = setTimeout(() => {
+      if (!done) {
+        done = true;
+        setHydrated(true);
+      }
+    }, 3000);
+
+    return () => {
+      clearTimeout(t);
+      unsubAuth();
+      unsubBill();
+    };
+  }, []);
 
   return hydrated;
 }

@@ -282,6 +282,7 @@ export const useBillStore = create<BillStore>()(
     }),
     {
       name: "splitsprint-store",
+      skipHydration: true,
       partialize: (state) => ({
         screen: state.screen,
         merchant: state.merchant,

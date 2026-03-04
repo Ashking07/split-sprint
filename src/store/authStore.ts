@@ -113,7 +113,8 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: "splitsprint-auth",
-      partialize: (s) => ({ token: s.token, user: s.user }), // hasHydrated not persisted
+      partialize: (s) => ({ token: s.token, user: s.user }),
+      skipHydration: true,
       onRehydrateStorage: () => (state) => {
         if (state?.token) {
           localStorage.setItem("splitsprint-token", state.token);
