@@ -3,6 +3,7 @@
   "outputDirectory": "dist",
   "framework": null,
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api?path=$1" },
     { "source": "/((?!api/|assets/|manifest|sw|registerSW).*)", "destination": "/index.html" }
   ]
 }

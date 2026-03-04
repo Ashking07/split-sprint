@@ -10,6 +10,24 @@ import receiptsRouter from "./server/routes/receipts.js";
 import splitwiseRouter from "./server/routes/splitwise.js";
 
 const app = express();
+
+// Vercel rewrite sends /api/:path* to /api?path=:path - restore req.url for Express routing
+app.use((req, res, next) => {
+  try {
+    const idx = req.url.indexOf("?");
+    if (idx >= 0) {
+      const params = new URLSearchParams(req.url.slice(idx + 1));
+      const path = params.get("path");
+      if (path) {
+        params.delete("path");
+        const qs = params.toString();
+        req.url = "/api/" + path.replace(/^\//, "") + (qs ? "?" + qs : "");
+      }
+    }
+  } catch (_) {}
+  next();
+});
+
 app.use(cors());
 app.get("/api/health", (_req, res) => res.status(200).json({ ok: true }));
 // Receipt images as base64 can be ~5MB; default 100kb is too small
