@@ -20,6 +20,7 @@ export function Integrations({ navigate }: IntegrationsProps) {
   const [splitwiseGroups, setSplitwiseGroups] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
     apiSplitwiseStatus()
@@ -35,7 +36,10 @@ export function Integrations({ navigate }: IntegrationsProps) {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleConnect = () => openSplitwiseConnect("integrations");
+  const handleConnect = () => {
+    setConnecting(true);
+    openSplitwiseConnect("integrations");
+  };
 
   const handleDisconnect = async () => {
     if (!confirm("Disconnect Splitwise? You can reconnect anytime.")) return;
@@ -126,20 +130,39 @@ export function Integrations({ navigate }: IntegrationsProps) {
                 </button>
               </div>
             ) : (
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={handleConnect}
-                className="w-full py-3 rounded-xl flex items-center justify-center gap-2"
-                style={{
-                  background: "linear-gradient(135deg, #10B981, #059669)",
-                  color: "white",
-                  fontSize: "14px",
-                  fontWeight: 700,
-                }}
-              >
-                <Link2 size={18} />
-                Connect Splitwise
-              </motion.button>
+              <>
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={handleConnect}
+                  disabled={connecting}
+                  className="w-full py-3 rounded-xl flex items-center justify-center gap-2"
+                  style={{
+                    background: connecting
+                      ? "#9CA3AF"
+                      : "linear-gradient(135deg, #10B981, #059669)",
+                    color: "white",
+                    fontSize: "14px",
+                    fontWeight: 700,
+                  }}
+                >
+                  {connecting ? (
+                    <>
+                      <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <Link2 size={18} />
+                      Connect Splitwise
+                    </>
+                  )}
+                </motion.button>
+                {connecting && (
+                  <p style={{ fontSize: "12px", color: "#6B7280", textAlign: "center", marginTop: "8px" }}>
+                    If this takes too long, the server may be starting up. Try again in a few seconds.
+                  </p>
+                )}
+              </>
             )}
           </div>
         </div>
