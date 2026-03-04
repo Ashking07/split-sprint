@@ -317,7 +317,7 @@ export function SplitSetup({ state, setState, navigate }: SplitSetupProps) {
                               Who had {item.name}?
                             </DrawerTitle>
                           </DrawerHeader>
-                          <div className="flex flex-wrap gap-2 px-4 pb-6 overflow-y-auto">
+                          <div className="flex flex-wrap gap-3 px-4 pb-6 overflow-y-auto">
                             {people.map((person) => {
                               const isAssigned = (
                                 itemAssignments[item.id] ??
@@ -326,39 +326,43 @@ export function SplitSetup({ state, setState, navigate }: SplitSetupProps) {
                               return (
                                 <button
                                   key={person.id}
-                                  onClick={() =>
-                                    togglePersonForItem(item.id, person.id)
-                                  }
-                                  className="flex items-center gap-2 rounded-full px-4 py-2 transition-all"
+                                  type="button"
+                                  onPointerDown={(e) => {
+                                    e.preventDefault();
+                                    togglePersonForItem(item.id, person.id);
+                                  }}
+                                  className="flex items-center gap-3 rounded-full px-5 py-3 transition-all select-none min-h-[44px] touch-manipulation"
                                   style={{
                                     background: isAssigned
                                       ? person.color
                                       : "#F3F4F6",
-                                    fontSize: "14px",
+                                    fontSize: "15px",
                                     fontWeight: 700,
                                     color: isAssigned ? "white" : "#6B7280",
                                     border: `2px solid ${
                                       isAssigned ? person.color : "#E5E7EB"
                                     }`,
+                                    touchAction: "manipulation",
+                                    WebkitTapHighlightColor: "transparent",
                                   }}
                                 >
                                   {isAssigned && (
-                                    <Check size={14} color="white" />
+                                    <Check size={18} color="white" />
                                   )}
                                   <span
-                                    className="w-7 h-7 rounded-full flex items-center justify-center"
+                                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                                     style={{
                                       background: isAssigned
                                         ? "rgba(255,255,255,0.3)"
                                         : "#E5E7EB",
-                                      fontSize: "12px",
+                                      fontSize: "13px",
                                       fontWeight: 700,
                                       color: isAssigned ? "white" : "#6B7280",
                                     }}
                                   >
                                     {person.avatar}
                                   </span>
-                                  {person.name}
+                                  <span>{person.name}</span>
                                 </button>
                               );
                             })}
