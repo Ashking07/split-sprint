@@ -14,11 +14,13 @@ function getHeaders(): HeadersInit {
 async function parseJson(res: Response) {
   const text = await res.text();
   if (!text) {
-    throw new Error(
-      res.status === 404
-        ? "API not found. Run 'vercel dev' for full stack, or check deployment."
-        : "Empty response from server"
-    );
+    const msg =
+      res.status === 504
+        ? "Server is starting up. Please try again in a few seconds."
+        : res.status === 404
+          ? "API not found. Run 'vercel dev' for full stack, or check deployment."
+          : "Empty response from server";
+    throw new Error(msg);
   }
   try {
     return JSON.parse(text);

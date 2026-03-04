@@ -44,12 +44,15 @@ function setCachedSplitwise(connected: boolean, groups: { id: number; name: stri
 }
 
 export async function prefetchGroups(): Promise<Group[]> {
-  // Run both in parallel; set groups as soon as we have them (don't wait for Splitwise)
-  const groupsPromise = apiGetGroups();
-  prefetchSplitwise(); // Fire and forget - populates Splitwise cache
-  const groups = await groupsPromise;
-  setCachedGroups(groups);
-  return groups;
+  try {
+    const groupsPromise = apiGetGroups();
+    prefetchSplitwise(); // Fire and forget - populates Splitwise cache
+    const groups = await groupsPromise;
+    setCachedGroups(groups);
+    return groups;
+  } catch {
+    return [];
+  }
 }
 
 export async function prefetchSplitwise(): Promise<void> {

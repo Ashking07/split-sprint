@@ -1,16 +1,19 @@
 {
+  "crons": [
+    { "path": "/api/health", "schedule": "*/5 * * * *" }
+  ],
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": null,
   "functions": {
     "api/index.js": {
-      "maxDuration": 15
+      "maxDuration": 10
     },
     "api/splitwise/connect.js": {
-      "maxDuration": 15
+      "maxDuration": 10
     },
     "api/splitwise/callback.js": {
-      "maxDuration": 15
+      "maxDuration": 10
     },
     "api/splitwise/status.js": {
       "maxDuration": 10

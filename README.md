@@ -63,3 +63,11 @@ Copy `.env.example` to `.env` and fill in your values. See `.env.example` for re
    `https://your-app.vercel.app/api/splitwise/callback`
 
 5. Deploy. Vercel will build the frontend and deploy the Express API as a serverless function.
+
+## Troubleshooting 504 / Cold Start
+
+If you see **504 Gateway Timeout** or **FUNCTION_INVOCATION_TIMEOUT**:
+
+- **MongoDB region**: Ensure your Atlas cluster is in a region close to Vercel (e.g. AWS `us-west` for `sfo1`).
+- **Cron warm-up**: A cron job hits `/api/health` every 5 minutes to reduce cold starts. Requires Vercel Pro for cron.
+- **First load**: After idle, the first request may timeout. Refresh or retry in a few seconds.
