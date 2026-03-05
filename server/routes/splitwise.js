@@ -230,6 +230,13 @@ router.get("/callback", async (req, res) => {
       : `${requestOrigin}/oauth/splitwise?returnTo=${encodeURIComponent(finalReturnTo)}`;
 
     const userIdObj = new mongoose.Types.ObjectId(storedUserId);
+    const user = await User.findById(userIdObj).lean();
+    if (user && !user.splitwiseXpBonusGranted) {
+      await User.findByIdAndUpdate(userIdObj, {
+        $inc: { xp: 50 },
+        splitwiseXpBonusGranted: true,
+      });
+    }
     await SplitwiseConnection.findOneAndUpdate(
       { userId: userIdObj },
       {
@@ -505,6 +512,17 @@ router.post("/expenses/create", authMiddleware, async (req, res) => {
     const currencyCode = bill.currency || "USD";
     const description = bill.merchant || "Receipt";
 
+    // Derive selected participants from bill — only include people user actually selected for this bill
+    const participantsByItem = bill.participantsByItem || {};
+    const selectedIdsSet = new Set();
+    for (const ids of Object.values(participantsByItem)) {
+      if (Array.isArray(ids)) {
+        for (const id of ids) {
+          if (id != null && String(id).trim()) selectedIdsSet.add(String(id));
+        }
+      }
+    }
+
     let participantIds = [];
     let swUserIds = [];
     let swMembers = group.splitwiseMembers?.length ? group.splitwiseMembers : null;
@@ -528,13 +546,24 @@ router.post("/expenses/create", authMiddleware, async (req, res) => {
     }
 
     if (swMembers?.length) {
-      participantIds = swMembers.map((m) => `sw:${m.id}`);
-      swUserIds = swMembers.map((m) => m.id);
+      const allParticipantIds = swMembers.map((m) => `sw:${m.id}`);
+      if (selectedIdsSet.size > 0) {
+        participantIds = allParticipantIds.filter((id) => selectedIdsSet.has(id));
+      } else {
+        participantIds = allParticipantIds;
+      }
+      swUserIds = participantIds.map((pid) => parseInt(pid.replace(/^sw:/, ""), 10)).filter((n) => !Number.isNaN(n));
     } else {
-      participantIds = [group.ownerId?.toString?.(), ...(group.memberIds || []).map((m) => m?.toString?.())].filter(
+      const allParticipantIds = [group.ownerId?.toString?.(), ...(group.memberIds || []).map((m) => m?.toString?.())].filter(
         Boolean
       );
-      if (participantIds.length === 0) participantIds = [req.userId];
+      if (allParticipantIds.length === 0) allParticipantIds.push(req.userId);
+
+      if (selectedIdsSet.size > 0) {
+        participantIds = allParticipantIds.filter((id) => selectedIdsSet.has(String(id)));
+      } else {
+        participantIds = allParticipantIds;
+      }
 
       const swGroups = await splitwiseFetch(req.userId, "/get_groups");
       const swGroup = (swGroups.groups || []).find((g) => g.id === group.splitwiseGroupId);
@@ -545,6 +574,7 @@ router.post("/expenses/create", authMiddleware, async (req, res) => {
       const swMembersFromApi = swGroup.members || [];
       const ourUsers = await User.find({ _id: { $in: participantIds } }).select("email").lean();
       const missingEmails = [];
+      swUserIds = [];
       for (const ourId of participantIds) {
         const user = ourUsers.find((u) => u._id.toString() === ourId);
         const email = user?.email?.toLowerCase();
@@ -579,6 +609,21 @@ router.post("/expenses/create", authMiddleware, async (req, res) => {
     if (!payerSwId && conn?.splitwiseEmail && swMembers?.length) {
       const payerMember = swMembers.find((m) => m.email?.toLowerCase() === conn.splitwiseEmail?.toLowerCase());
       if (payerMember) payerSwId = payerMember.id;
+    }
+
+    // Ensure payer is always included (they paid the bill)
+    const payerIdStr = String(req.userId);
+    const payerSwPid = payerSwId != null ? `sw:${payerSwId}` : null;
+    if (participantIds.length > 0) {
+      const hasPayer = participantIds.some(
+        (id) => String(id) === payerIdStr || (payerSwPid != null && String(id) === payerSwPid)
+      );
+      if (!hasPayer && payerSwPid != null && swMembers?.length) {
+        participantIds = [payerSwPid, ...participantIds];
+        if (!swUserIds.includes(payerSwId)) swUserIds = [payerSwId, ...swUserIds];
+      } else if (!hasPayer && !swMembers?.length) {
+        participantIds = [payerIdStr, ...participantIds.filter((id) => id !== payerIdStr)];
+      }
     }
 
     const useSplitwiseMembers = !!swMembers?.length;
@@ -689,11 +734,22 @@ router.post("/expenses/create", authMiddleware, async (req, res) => {
       });
     }
 
+    const XP_PER_BILL = 25;
+    const updated = await User.findByIdAndUpdate(
+      req.userId,
+      { $inc: { xp: XP_PER_BILL, streak: 1 } },
+      { new: true }
+    ).lean();
+    const newXp = updated?.xp ?? 0;
+
     const expenseUrl = expenseId ? `https://www.splitwise.com/expenses/${expenseId}` : null;
     return res.status(200).json({
       success: true,
       expenseId,
       expenseUrl,
+      xpGained: XP_PER_BILL,
+      xp: newXp,
+      streak: updated?.streak ?? 0,
     });
   } catch (err) {
     console.error("Splitwise create expense error:", err);

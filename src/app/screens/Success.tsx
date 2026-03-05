@@ -6,6 +6,7 @@ import { AppState, Screen } from "../types";
 import { GROUPS } from "../mockData";
 import { useBillStore } from "../../store/billStore";
 import { SPLITWISE_PLACEHOLDER_URL } from "../../lib/exportSplitwise";
+import { getProgress } from "../../lib/xpUtils";
 
 interface SuccessProps {
   state: AppState;
@@ -16,6 +17,7 @@ interface SuccessProps {
 export function Success({ state, setState, navigate }: SuccessProps) {
   const fired = useRef(false);
   const selectedGroup = state.selectedGroup || GROUPS[0];
+  const { level, xpInLevel, maxXpForLevel } = getProgress(state.xp);
   const people = state.selectedPeople?.length ? state.selectedPeople : selectedGroup.members;
 
   const items = state.items;
@@ -141,10 +143,10 @@ export function Success({ state, setState, navigate }: SuccessProps) {
             transition={{ delay: 0.7 }}
             style={{ fontSize: "28px", fontWeight: 900, color: "#A78BFA", lineHeight: 1 }}
           >
-            +25 XP
+            +{state.xpGained ?? 25} XP
           </motion.div>
           <div style={{ fontSize: "13px", color: "#C4B5FD", marginTop: "2px" }}>
-            Level 3 · {state.xp} / 500 XP
+            Level {level} · {xpInLevel} / {maxXpForLevel} XP
           </div>
         </div>
         <div className="ml-auto text-right">

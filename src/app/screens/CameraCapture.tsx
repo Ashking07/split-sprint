@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowLeft, RotateCcw, Check, Zap, Upload, Loader2 } from "lucide-react";
+import { ArrowLeft, Zap, Upload, Loader2 } from "lucide-react";
 import { Screen } from "../types";
 import { useBillStore } from "../../store/billStore";
 import { apiSplitwiseStatus } from "../../lib/api";
@@ -22,10 +22,10 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
   const [messageIdx, setMessageIdx] = useState(0);
   const [parseError, setParseError] = useState<string | null>(null);
   const [preparingMessage, setPreparingMessage] = useState("Loading image...");
-  const [scanLine, setScanLine] = useState(0);
   const [cameraReady, setCameraReady] = useState(false);
   const [videoHasFrames, setVideoHasFrames] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [needsUserTap, setNeedsUserTap] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -68,16 +68,15 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
         const video = videoRef.current;
         if (video) {
           video.srcObject = stream;
-          // Don't call play() - use autoplay attribute; play() can throw NotAllowedError on iOS
           video.muted = true;
           video.playsInline = true;
           video.setAttribute("playsinline", "");
           video.setAttribute("webkit-playsinline", "");
-          const playPromise = video.play();
-          if (playPromise !== undefined) {
-            playPromise.catch(() => {
-              // Autoplay may be blocked; video can still show when user interacts
-            });
+          try {
+            await video.play();
+            setNeedsUserTap(false);
+          } catch {
+            setNeedsUserTap(true);
           }
         }
         setCameraReady(true);
@@ -96,12 +95,18 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
     };
   }, [phase]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setScanLine(prev => (prev + 2) % 100);
-    }, 30);
-    return () => clearInterval(interval);
-  }, []);
+  const handleEnableCamera = async () => {
+    const video = videoRef.current;
+    if (video && streamRef.current && needsUserTap) {
+      hapticLight();
+      try {
+        await video.play();
+        setNeedsUserTap(false);
+      } catch {
+        setCameraError("Could not start camera. Try uploading a photo.");
+      }
+    }
+  };
 
   useEffect(() => {
     if (phase === "processing" && pendingBase64Ref.current) {
@@ -249,20 +254,20 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
               </div>
             )}
             {/* Top bar */}
-            <div className="flex items-center justify-between px-5 py-3 z-10">
+            <div className="flex items-center justify-between px-5 py-4 z-10">
               <button
                 onClick={() => navigate("import")}
-                className="w-9 h-9 rounded-xl flex items-center justify-center"
-                style={{ background: "rgba(255,255,255,0.1)" }}
+                className="w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ background: "rgba(255,255,255,0.15)" }}
               >
-                <ArrowLeft size={18} color="white" />
+                <ArrowLeft size={20} color="white" />
               </button>
-              <span style={{ fontSize: "15px", fontWeight: 700, color: "white" }}>
+              <span style={{ fontSize: "17px", fontWeight: 700, color: "white", letterSpacing: "-0.02em" }}>
                 Scan Receipt
               </span>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                style={{ background: "rgba(34,197,94,0.2)" }}>
-                <Zap size={16} color="#22C55E" />
+              <div className="w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ background: "rgba(34,197,94,0.25)" }}>
+                <Zap size={18} color="#22C55E" />
               </div>
             </div>
 
@@ -273,81 +278,97 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
             >
               {/* Live camera or fallback background */}
               {cameraReady ? (
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="absolute inset-0 w-full h-full object-cover"
-                  onLoadedData={() => setVideoHasFrames(true)}
-                  onError={() => setVideoHasFrames(false)}
-                />
+                <>
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="absolute inset-0 w-full h-full object-cover"
+                    onLoadedData={() => setVideoHasFrames(true)}
+                    onError={() => setVideoHasFrames(false)}
+                  />
+                  {needsUserTap && (
+                    <button
+                      type="button"
+                      onClick={handleEnableCamera}
+                      className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/70"
+                    >
+                      <div className="w-16 h-16 rounded-full flex items-center justify-center bg-white/20">
+                        <Zap size={28} color="#22C55E" />
+                      </div>
+                      <span className="text-white font-semibold text-base px-6 text-center">
+                        Tap to enable camera
+                      </span>
+                      <span className="text-white/70 text-sm px-6 text-center">
+                        Your browser requires a tap to show the live view
+                      </span>
+                    </button>
+                  )}
+                </>
               ) : !cameraError ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-black">
-                  <div className="text-center text-white/70 text-sm">Starting camera...</div>
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black">
+                  <Loader2 size={28} color="#22C55E" className="animate-spin" />
+                  <span className="text-white/80 text-sm">Starting camera...</span>
                 </div>
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center bg-[#1a1a1a]" />
               )}
 
-              {/* Subtle vignette - lighter so it doesn't obscure the view */}
+              {/* Subtle vignette */}
               <div
                 className="absolute inset-0 pointer-events-none"
                 style={{
-                  background: "radial-gradient(ellipse 70% 70% at center, transparent 50%, rgba(0,0,0,0.25) 100%)",
+                  background: "radial-gradient(ellipse 75% 75% at center, transparent 55%, rgba(0,0,0,0.2) 100%)",
                 }}
               />
 
-              {/* Receipt frame overlay */}
+              {/* Receipt frame overlay - clean borders for framing */}
               <div
-                className="absolute flex items-center justify-center"
+                className="absolute flex items-center justify-center pointer-events-none"
                 style={{
-                  width: "min(260px, 85vw)",
-                  height: "min(380px, 55vh)",
+                  width: "min(280px, 88vw)",
+                  height: "min(400px, 58vh)",
                   inset: 0,
                   margin: "auto",
                 }}
               >
                 <div className="relative w-full h-full">
                   <div
-                    className="absolute inset-0 rounded-2xl border-2 border-green-500/60"
-                    style={{ boxShadow: "inset 0 0 0 1px rgba(34,197,94,0.3)" }}
-                  />
-                  {/* Scan line */}
-                  <motion.div
-                    className="absolute left-0 right-0 h-0.5 pointer-events-none rounded-2xl"
+                    className="absolute inset-0 rounded-2xl"
                     style={{
-                      top: `${scanLine}%`,
-                      background: "linear-gradient(90deg, transparent, #22C55E, #22C55E, transparent)",
-                      opacity: 0.8,
+                      border: "2px solid rgba(255,255,255,0.5)",
+                      boxShadow: "0 0 0 1px rgba(0,0,0,0.2), inset 0 0 0 1px rgba(34,197,94,0.4)",
                     }}
                   />
                   {/* Corner brackets */}
                   {[
-                    { top: 4, left: 4, borderTop: "3px solid #22C55E", borderLeft: "3px solid #22C55E" },
-                    { top: 4, right: 4, borderTop: "3px solid #22C55E", borderRight: "3px solid #22C55E" },
-                    { bottom: 4, left: 4, borderBottom: "3px solid #22C55E", borderLeft: "3px solid #22C55E" },
-                    { bottom: 4, right: 4, borderBottom: "3px solid #22C55E", borderRight: "3px solid #22C55E" },
-                  ].map((style, i) => (
-                    <div key={i} className="absolute w-6 h-6 rounded" style={style} />
+                    { top: 0, left: 0, borderTop: "3px solid #22C55E", borderLeft: "3px solid #22C55E" },
+                    { top: 0, right: 0, borderTop: "3px solid #22C55E", borderRight: "3px solid #22C55E" },
+                    { bottom: 0, left: 0, borderBottom: "3px solid #22C55E", borderLeft: "3px solid #22C55E" },
+                    { bottom: 0, right: 0, borderBottom: "3px solid #22C55E", borderRight: "3px solid #22C55E" },
+                  ].map((s, i) => (
+                    <div key={i} className="absolute w-6 h-6 rounded-sm" style={s} />
                   ))}
                 </div>
               </div>
 
-              {/* Guide text & fallback */}
+              {/* Guide text & upload option */}
               <div
                 className="absolute bottom-4 left-0 right-0 text-center space-y-2 px-4"
-                style={{ fontSize: "12px", color: "rgba(255,255,255,0.85)" }}
+                style={{ fontSize: "12px", color: "rgba(255,255,255,0.9)" }}
               >
-                <div>
-                  {cameraError
-                    ? "Camera unavailable. Upload a photo of your receipt."
-                    : cameraReady
-                      ? videoHasFrames
-                        ? "Align receipt in frame, then tap the white button"
-                        : "Camera starting..."
-                      : "Starting camera..."}
-                </div>
+                {!needsUserTap && (
+                  <div>
+                    {cameraError
+                      ? "Camera unavailable. Upload a photo of your receipt."
+                      : cameraReady && videoHasFrames
+                        ? "Align receipt in frame, then tap the white button to capture"
+                        : cameraReady
+                          ? "Camera ready"
+                          : "Starting camera..."}
+                  </div>
+                )}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -363,7 +384,7 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
                   }}
                   className="flex items-center justify-center gap-2 mx-auto py-2.5 px-5 rounded-xl"
                   style={{
-                    background: cameraError ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.2)",
+                    background: cameraError ? "#22C55E" : "rgba(255,255,255,0.25)",
                     color: "white",
                     fontSize: "14px",
                     fontWeight: 600,
@@ -376,40 +397,43 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
             </div>
 
             {/* Bottom controls */}
-            <div className="flex items-center justify-around px-8 py-6">
+            <div className="flex items-center justify-around px-8 py-6 gap-4">
               <button
                 onClick={() => navigate("import")}
                 className="w-12 h-12 rounded-full flex items-center justify-center"
-                style={{ background: "rgba(255,255,255,0.1)" }}
+                style={{ background: "rgba(255,255,255,0.12)" }}
               >
-                <RotateCcw size={20} color="white" />
+                <ArrowLeft size={20} color="white" />
               </button>
 
               {/* Shutter button */}
               <motion.button
-                whileTap={{ scale: 0.9 }}
+                whileTap={{ scale: 0.92 }}
                 onClick={() => {
                   hapticLight();
                   handleCapture();
                 }}
-                className="w-20 h-20 rounded-full flex items-center justify-center"
+                className="w-20 h-20 rounded-full flex items-center justify-center shrink-0"
                 style={{
                   background: "white",
-                  boxShadow: "0 0 0 4px rgba(255,255,255,0.3)",
+                  boxShadow: "0 0 0 5px rgba(255,255,255,0.25), 0 4px 20px rgba(0,0,0,0.3)",
                 }}
               >
                 <div
                   className="w-16 h-16 rounded-full"
-                  style={{ background: "white", border: "3px solid #E5E7EB" }}
+                  style={{ background: "white", border: "3px solid #D1D5DB" }}
                 />
               </motion.button>
 
               <button
-                onClick={() => navigate("review")}
+                onClick={() => {
+                  hapticLight();
+                  fileInputRef.current?.click();
+                }}
                 className="w-12 h-12 rounded-full flex items-center justify-center"
-                style={{ background: "rgba(34,197,94,0.2)", border: "1px solid rgba(34,197,94,0.4)" }}
+                style={{ background: "rgba(34,197,94,0.25)", border: "1.5px solid rgba(34,197,94,0.5)" }}
               >
-                <Check size={20} color="#22C55E" />
+                <Upload size={20} color="#22C55E" />
               </button>
             </div>
           </motion.div>

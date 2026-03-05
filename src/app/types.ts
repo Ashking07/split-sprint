@@ -88,4 +88,6 @@ export interface AppState {
   splitMode: "equal" | "itemized";
   xp: number;
   streak: number;
+  /** Set when navigating to success after Splitwise upload; shown as +N XP */
+  xpGained?: number;
 }

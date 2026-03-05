@@ -29,6 +29,7 @@ export function ReceiptReview({ state, setState, navigate }: ReceiptReviewProps)
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editPrice, setEditPrice] = useState("");
+  const [editQty, setEditQty] = useState("");
   const [showCustomTip, setShowCustomTip] = useState(false);
   const [filter, setFilter] = useState<"all" | "needs_review">("all");
   const [saving, setSaving] = useState(false);
@@ -43,15 +44,18 @@ export function ReceiptReview({ state, setState, navigate }: ReceiptReviewProps)
     setEditingItem(item.id);
     setEditName(item.name);
     setEditPrice(item.price.toFixed(2));
+    setEditQty(String(item.qty));
   };
 
   const saveEdit = (itemId: string) => {
+    const qty = Math.max(1, Math.floor(parseInt(editQty, 10)) || 1);
     const updated = items.map(it =>
       it.id === itemId
         ? {
             ...it,
             name: editName,
             price: parseFloat(editPrice) || it.price,
+            qty,
             uncertain: false,
             confidence: 1,
           }
@@ -101,6 +105,7 @@ export function ReceiptReview({ state, setState, navigate }: ReceiptReviewProps)
     setEditingItem(newItem.id);
     setEditName(newItem.name);
     setEditPrice("0");
+    setEditQty("1");
   };
 
   const deleteItem = (id: string) => {
@@ -247,7 +252,21 @@ export function ReceiptReview({ state, setState, navigate }: ReceiptReviewProps)
                         value={editPrice}
                         onChange={e => setEditPrice(e.target.value)}
                         type="number"
+                        step="0.01"
+                        min="0"
                         className="rounded-lg pl-7 pr-3 py-2 w-full outline-none"
+                        style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", fontSize: "14px" }}
+                        placeholder="Unit price"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1" style={{ minWidth: "72px" }}>
+                      <label style={{ fontSize: "12px", color: "#6B7280", whiteSpace: "nowrap" }}>Qty</label>
+                      <input
+                        value={editQty}
+                        onChange={e => setEditQty(e.target.value)}
+                        type="number"
+                        min={1}
+                        className="rounded-lg px-2 py-2 w-14 text-center outline-none"
                         style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", fontSize: "14px" }}
                       />
                     </div>

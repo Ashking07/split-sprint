@@ -13,6 +13,20 @@ function computeTotalCents(items, taxCents, tipCents) {
   return subtotal + (taxCents || 0) + (tipCents || 0);
 }
 
+/** Derive participant IDs from participantsByItem (union of all assigned) */
+function getParticipantIdsFromBill(bill) {
+  const participantsByItem = bill.participantsByItem || {};
+  const set = new Set();
+  for (const ids of Object.values(participantsByItem)) {
+    if (Array.isArray(ids)) {
+      for (const id of ids) {
+        if (id != null && String(id).trim()) set.add(String(id));
+      }
+    }
+  }
+  return Array.from(set);
+}
+
 const router = Router();
 
 router.use(authMiddleware);
@@ -135,8 +149,8 @@ router.post("/:id/finalize", async (req, res) => {
 
     bill.totalCents = computeTotalCents(bill.items, bill.taxCents, bill.tipCents);
 
-    let participantIds = [];
-    if (bill.groupId) {
+    let participantIds = getParticipantIdsFromBill(bill);
+    if (participantIds.length === 0 && bill.groupId) {
       const group = await Group.findById(bill.groupId).lean();
       if (group) {
         const ownerStr = group.ownerId?.toString?.();
@@ -150,6 +164,9 @@ router.post("/:id/finalize", async (req, res) => {
       }
     }
     if (participantIds.length === 0) participantIds = [req.userId];
+    if (!participantIds.includes(String(req.userId))) {
+      participantIds = [String(req.userId), ...participantIds];
+    }
 
     const { shares, whoOwesPayer } = computeSettlementSnapshot(
       bill,

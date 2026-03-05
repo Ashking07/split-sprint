@@ -1,13 +1,13 @@
 import React from "react";
+import { getProgress } from "../../lib/xpUtils";
 
 interface XPBarProps {
   xp: number;
-  maxXP?: number;
-  level?: number;
 }
 
-export function XPBar({ xp, maxXP = 500, level = 3 }: XPBarProps) {
-  const progress = Math.min((xp / maxXP) * 100, 100);
+export function XPBar({ xp }: XPBarProps) {
+  const { level, xpInLevel, maxXpForLevel } = getProgress(xp);
+  const progress = maxXpForLevel > 0 ? Math.min((xpInLevel / maxXpForLevel) * 100, 100) : 0;
 
   return (
     <div className="flex items-center gap-2">
@@ -31,7 +31,7 @@ export function XPBar({ xp, maxXP = 500, level = 3 }: XPBarProps) {
             Level {level}
           </span>
           <span style={{ fontSize: "10px", color: "#9CA3AF" }}>
-            {xp} / {maxXP} XP
+            {xpInLevel} / {maxXpForLevel} XP
           </span>
         </div>
         <div className="h-2 rounded-full overflow-hidden" style={{ background: "#EDE9FE" }}>

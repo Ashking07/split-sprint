@@ -2,11 +2,14 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { apiLogin, apiSignup, apiMe } from "../lib/api";
 import { hapticSuccess, hapticError } from "../lib/haptic";
+import { useBillStore } from "./billStore";
 
 interface User {
   id: string;
   email: string;
   name: string;
+  xp?: number;
+  streak?: number;
 }
 
 interface AuthStore {
@@ -36,6 +39,10 @@ export const useAuthStore = create<AuthStore>()(
           const { token, user } = await apiLogin(email, password);
           localStorage.setItem("splitsprint-token", token);
           set({ token, user, isLoading: false });
+          useBillStore.getState().updateState({
+            xp: user.xp ?? 0,
+            streak: user.streak ?? 0,
+          });
           hapticSuccess();
         } catch (err) {
           set({ isLoading: false });
@@ -50,6 +57,10 @@ export const useAuthStore = create<AuthStore>()(
           const { token, user } = await apiSignup(email, password, name);
           localStorage.setItem("splitsprint-token", token);
           set({ token, user, isLoading: false });
+          useBillStore.getState().updateState({
+            xp: user.xp ?? 0,
+            streak: user.streak ?? 0,
+          });
           hapticSuccess();
         } catch (err) {
           set({ isLoading: false });
@@ -89,6 +100,10 @@ export const useAuthStore = create<AuthStore>()(
                 set({ token: null, user: null });
               } else {
                 set({ user });
+                useBillStore.getState().updateState({
+                  xp: user.xp ?? 0,
+                  streak: user.streak ?? 0,
+                });
               }
             })
             .catch(() => {
@@ -104,6 +119,10 @@ export const useAuthStore = create<AuthStore>()(
             return;
           }
           set({ token, user, isChecked: true });
+          useBillStore.getState().updateState({
+            xp: user.xp ?? 0,
+            streak: user.streak ?? 0,
+          });
         } catch {
           // 504/500/server errors: keep cached state if any, don't log out
           set({ isChecked: true });
@@ -112,7 +131,10 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: "splitsprint-auth",
-      partialize: (s) => ({ token: s.token, user: s.user }),
+      partialize: (s) => ({
+        token: s.token,
+        user: s.user ? { id: s.user.id, email: s.user.email, name: s.user.name } : null,
+      }),
       skipHydration: true,
       onRehydrateStorage: () => (state) => {
         if (state?.token) {

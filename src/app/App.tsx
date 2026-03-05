@@ -53,6 +53,7 @@ export default function App() {
     splitMode,
     xp,
     streak,
+    xpGained,
   } = useBillStore();
 
   const fetchHistory = useBillStore((s) => s.fetchHistory);
@@ -152,6 +153,7 @@ export default function App() {
     splitMode,
     xp,
     streak,
+    xpGained,
   };
 
   if (!hydrated) return <LoadingSpinner />;

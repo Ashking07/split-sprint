@@ -67,7 +67,13 @@ app.post("/api/auth/signup", async (req, res) => {
     const token = signToken(user._id.toString());
     return res.status(201).json({
       token,
-      user: { id: user._id.toString(), email: user.email, name: user.name },
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        name: user.name,
+        xp: user.xp ?? 0,
+        streak: user.streak ?? 0,
+      },
     });
   } catch (err) {
     console.error("Signup error:", err);
@@ -94,7 +100,13 @@ app.post("/api/auth/login", async (req, res) => {
     const token = signToken(user._id.toString());
     return res.status(200).json({
       token,
-      user: { id: user._id.toString(), email: user.email, name: user.name },
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        name: user.name,
+        xp: user.xp ?? 0,
+        streak: user.streak ?? 0,
+      },
     });
   } catch (err) {
     console.error("Login error:", err);
@@ -116,6 +128,8 @@ app.get("/api/me", async (req, res) => {
       id: user._id.toString(),
       email: user.email,
       name: user.name,
+      xp: user.xp ?? 0,
+      streak: user.streak ?? 0,
     });
   } catch (err) {
     console.error("Me error:", err);

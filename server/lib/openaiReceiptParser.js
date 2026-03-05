@@ -76,14 +76,16 @@ RULES (apply to all receipt types):
 3. DATE: receiptDate as yyyy-mm-dd ONLY if a date is clearly printed. Otherwise null. Do not infer or guess.
 
 4. ITEMS - handle all formats:
+   - QUANTITY RULE (critical): When in doubt, use qty=1. Only use qty>1 when the receipt EXPLICITLY shows a count (e.g. "3 @ $0.99", "2× Coffee", "Qty: 2", or a quantity column). Do NOT infer quantity from layout, repeated lines, or formatting—this causes over-counting.
    - Count: "3 @ $0.99" → qty=3, unitPriceCents=99
    - WEIGHT-BASED (lb, kg, oz): "Bananas 2.66 lb @ 0.59/lb" or "2.66 lb @ 0.59 USD/lb" with total $1.57 → qty=1, unitPriceCents=157 (use the TOTAL as unitPriceCents; do NOT use price-per-pound). Same for produce, meat, deli—weight items get qty=1 and unitPriceCents=total in cents.
    - Single: "Coffee $3.50" → qty=1, unitPriceCents=350
-   - Repeated lines: 3× "Yogurt $1.69" → one item qty=3, unitPriceCents=169
+   - Repeated lines: Only use qty>1 if the receipt clearly shows a multiplier (e.g. "3× Yogurt $1.69"). If the same item appears on multiple lines with the same price, count the lines and use that as qty. Do NOT inflate qty from visual repetition alone.
    - Use actual item names (e.g. "Paper Bag"), NOT category headers (e.g. "General", "Produce", "Dairy")
    - Match each item to ITS OWN price—never mix up adjacent items
    - Use the final/discounted price when "Regular Price" or sale price is shown (e.g. "Reg $4.99" then "$4.69 F" → use 469 cents)
    - Exclude: SUBTOTAL, TOTAL, TAX, TIP, card numbers, THANK YOU, payment method
+   - SANITY CHECK: If sum of (qty × unitPrice) for all items would exceed the receipt subtotal/total, re-check quantities—you may have over-counted. Prefer qty=1 when uncertain.
 
 5. TAX: Use taxCents=0 when receipt shows 0% tax, 0.000% tax, $0.00 tax, or "0.00" on the tax line. NEVER guess or use a tax amount from another receipt. Only use the exact tax number printed on THIS receipt. If tax line shows zero, taxCents=0.
 
@@ -103,9 +105,14 @@ function isJunk(name) {
 }
 
 function normalizeParsedOutput(raw) {
-  const items = (raw.items || [])
+  const taxCents = Math.max(0, Math.floor(Number(raw.taxCents) ?? 0));
+  const tipCents = Math.max(0, Math.floor(Number(raw.tipCents) ?? 0));
+  const totalCents = Math.max(0, Math.floor(Number(raw.totalCents) ?? 0));
+  const expectedSubtotal = totalCents - taxCents - tipCents;
+
+  let items = (raw.items || [])
     .filter((it) => !isJunk(it.name))
-    .map((it, i) => ({
+    .map((it) => ({
       name: String(it.name || "Unknown").trim() || "Unknown",
       qty: Math.max(1, Math.floor(Number(it.qty)) || 1),
       unitPriceCents: Math.max(0, Math.floor(Number(it.unitPriceCents)) || 0),
@@ -113,12 +120,33 @@ function normalizeParsedOutput(raw) {
     }))
     .filter((it) => it.name !== "Unknown" || it.unitPriceCents > 0);
 
-  const taxCents = Math.max(0, Math.floor(Number(raw.taxCents) ?? 0));
-  const tipCents = Math.max(0, Math.floor(Number(raw.tipCents) ?? 0));
-  const totalCents = Math.max(0, Math.floor(Number(raw.totalCents) ?? 0));
+  // Confidence-based qty clamp: low-confidence items with qty>1 often over-counted
+  items = items.map((it) => {
+    if (it.confidence < 0.8 && it.qty > 1) {
+      return { ...it, qty: 1 };
+    }
+    return it;
+  });
+
+  let computedSubtotal = items.reduce((s, it) => s + it.qty * it.unitPriceCents, 0);
   const notes = [...(raw.notes || [])];
 
-  const computedSubtotal = items.reduce((s, it) => s + it.qty * it.unitPriceCents, 0);
+  // If subtotal exceeds expected by >5%, try reducing qty on items with qty>1
+  if (expectedSubtotal > 0 && computedSubtotal > expectedSubtotal * 1.05) {
+    const candidates = items
+      .map((it, i) => ({ i, it, excess: it.qty > 1 ? (it.qty - 1) * it.unitPriceCents : 0 }))
+      .filter((c) => c.excess > 0)
+      .sort((a, b) => b.excess - a.excess); // highest first
+
+    for (const { i, it } of candidates) {
+      if (computedSubtotal <= expectedSubtotal * 1.02) break;
+      const reduced = Math.max(1, it.qty - 1);
+      const saved = (it.qty - reduced) * it.unitPriceCents;
+      items[i] = { ...it, qty: reduced };
+      computedSubtotal -= saved;
+    }
+  }
+
   const computedTotal = computedSubtotal + taxCents + tipCents;
   if (Math.abs(computedTotal - totalCents) > 1) {
     notes.push(`Totals may be inconsistent: computed ${computedTotal} vs parsed ${totalCents} cents`);

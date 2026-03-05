@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import { MobileFrame } from "../components/MobileFrame";
 import { useAuthStore } from "../../store/authStore";
-import { apiSplitwiseStatus } from "../../lib/api";
+import { useBillStore } from "../../store/billStore";
+import { apiSplitwiseStatus, apiMe } from "../../lib/api";
 import { prefetchGroups } from "../../lib/groupsCache";
 import type { Screen } from "../types";
 
@@ -55,6 +56,18 @@ export function OAuthSplitwiseLanding() {
         }
         if (st.connected) {
           prefetchGroups(); // Prefetch groups + Splitwise now that user just connected
+          // Sync XP (50 bonus for connecting) before redirect
+          try {
+            const user = await apiMe();
+            if (user) {
+              useBillStore.getState().updateState({
+                xp: user.xp ?? 0,
+                streak: user.streak ?? 0,
+              });
+            }
+          } catch {
+            /* ignore */
+          }
           window.location.replace(`/?screen=${encodeURIComponent(screen)}`);
           return;
         }

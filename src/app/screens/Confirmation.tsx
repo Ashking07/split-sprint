@@ -131,7 +131,6 @@ export function Confirmation({ state, setState, navigate }: ConfirmationProps) {
     if (creating) return;
     setCreating(true);
     try {
-      setState({ xp: state.xp + 25, streak: state.streak + 1 });
       const billId = await saveBillAndFinalize();
       if (billId) {
         navigate("success");
@@ -153,7 +152,13 @@ export function Confirmation({ state, setState, navigate }: ConfirmationProps) {
       }
       if (!billId) return;
       const res = await apiSplitwiseCreateExpense(billId, selectedGroup?.id);
-      setState({ xp: state.xp + 25, streak: state.streak + 1 });
+      if (res.xp != null) {
+        useBillStore.getState().updateState({
+          xp: res.xp,
+          streak: res.streak ?? state.streak,
+          xpGained: res.xpGained ?? 25,
+        });
+      }
       if (res.expenseUrl) {
         window.open(res.expenseUrl, "_blank");
       }
@@ -504,33 +509,35 @@ export function Confirmation({ state, setState, navigate }: ConfirmationProps) {
           </button>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="rounded-xl px-4 py-3 flex items-center gap-3 mb-2"
-          style={{
-            background: "#F5F3FF",
-            border: "1.5px solid #DDD6FE",
-          }}
-        >
-          <span style={{ fontSize: "20px" }}>✨</span>
-          <div>
-            <span
-              style={{
-                fontSize: "13px",
-                fontWeight: 700,
-                color: "#7C3AED",
-              }}
-            >
-              +25 XP
-            </span>
-            <span style={{ fontSize: "13px", color: "#6D28D9" }}>
-              {" "}
-              for completing this bill!
-            </span>
-          </div>
-        </motion.div>
+        {canCreateInSplitwise && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="rounded-xl px-4 py-3 flex items-center gap-3 mb-2"
+            style={{
+              background: "#F5F3FF",
+              border: "1.5px solid #DDD6FE",
+            }}
+          >
+            <span style={{ fontSize: "20px" }}>✨</span>
+            <div>
+              <span
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  color: "#7C3AED",
+                }}
+              >
+                +25 XP
+              </span>
+              <span style={{ fontSize: "13px", color: "#6D28D9" }}>
+                {" "}
+                for uploading to Splitwise!
+              </span>
+            </div>
+          </motion.div>
+        )}
 
         <div className="h-2" />
       </div>

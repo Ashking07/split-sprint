@@ -28,8 +28,8 @@ const INITIAL_STATE: Omit<AppState, "screen"> & { screen: Screen } = {
   selectedGroup: null,
   selectedPeople: [],
   splitMode: "equal",
-  xp: 325,
-  streak: 4,
+  xp: 0,
+  streak: 0,
 };
 
 interface BillStore extends AppState {
@@ -95,6 +95,7 @@ export const useBillStore = create<BillStore>()(
           splitMode: "equal",
           receiptImageUrl: undefined,
           currentBillId: null,
+          xpGained: undefined,
         })),
 
       loadBill: async (id, options) => {
@@ -282,7 +283,7 @@ export const useBillStore = create<BillStore>()(
         set((state) => ({ ...state, history })),
     }),
     {
-      name: "splitsprint-store",
+      name: "splitsprint-store-v2",
       skipHydration: true,
       partialize: (state) => ({
         screen: state.screen,
@@ -296,8 +297,8 @@ export const useBillStore = create<BillStore>()(
         selectedGroup: state.selectedGroup,
         selectedPeople: state.selectedPeople,
         splitMode: state.splitMode,
-        xp: state.xp,
-        streak: state.streak,
+        // xp/streak: never persist — always from server (api/me)
+        xpGained: state.xpGained,
         receiptImageUrl: state.receiptImageUrl,
         history: state.history,
       }),
