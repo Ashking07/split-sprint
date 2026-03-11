@@ -124,6 +124,22 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Safe-area inset padding — reliable CSS env() for notch / Dynamic Island */
+.safe-area-pad {
+  padding-top: constant(safe-area-inset-top);  /* iOS 11.0 – 11.2 */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: constant(safe-area-inset-left);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: constant(safe-area-inset-right);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+.safe-area-top {
+  padding-top: constant(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
 .ios-scroll {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;

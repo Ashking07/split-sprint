@@ -77,9 +77,9 @@ export function Success({ state, setState, navigate }: SuccessProps) {
 
   return (
     <div
-      className="flex flex-col h-full items-center px-5 overflow-y-auto"
+      className="flex flex-col h-full items-center px-5 overflow-y-auto safe-area-top"
       style={{
-        paddingTop: "1.5rem",
+        paddingTop: "max(1.5rem, env(safe-area-inset-top, 1.5rem))",
       }}
     >
       {/* Success animation */}

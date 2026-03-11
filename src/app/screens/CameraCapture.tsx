@@ -310,7 +310,7 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0A0A0A]">
+    <div className="flex flex-col h-full bg-[#0A0A0A] safe-area-top">
       <AnimatePresence mode="wait">
         {/* ── PREVIEW PHASE ─────────────────────────────────────────── */}
         {phase === "preview" && capturedUrl && (

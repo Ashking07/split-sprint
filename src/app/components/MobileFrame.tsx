@@ -11,13 +11,7 @@ export function MobileFrame({ children }: MobileFrameProps) {
   if (standalone) {
     return (
       <div
-        className="min-h-screen flex flex-col bg-[#F7F6FF] ios-app-shell"
-        style={{
-          paddingLeft: "env(safe-area-inset-left)",
-          paddingRight: "env(safe-area-inset-right)",
-          paddingTop: "env(safe-area-inset-top)",
-          paddingBottom: "env(safe-area-inset-bottom)",
-        }}
+        className="min-h-screen flex flex-col bg-[#F7F6FF] ios-app-shell safe-area-pad"
       >
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">{children}</div>
         <p
