@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { Clock, Plus, ChevronRight, LogOut, Settings, Link2 } from "lucide-react";
+import { Zap } from "lucide-react";
 import { StreakBadge } from "../components/StreakBadge";
 import { XPBar } from "../components/XPBar";
 import { AppState, Screen } from "../types";
@@ -8,6 +9,7 @@ import { useBillStore } from "../../store/billStore";
 import { useAuthStore } from "../../store/authStore";
 import { apiMe, apiSplitwiseStatus } from "../../lib/api";
 import { openSplitwiseConnect } from "../../lib/splitwiseConnect";
+import { apiGetCredits } from "../../lib/api";
 
 interface HomeProps {
   state: AppState;
@@ -38,6 +40,13 @@ export function Home({ state, navigate }: HomeProps) {
 
   const history = historyFromStore;
   const recentBills = history.slice(0, 3);
+
+  const [credits, setCredits] = useState<{ remaining: number; total: number } | null>(null);
+  useEffect(() => {
+    apiGetCredits()
+      .then((c) => { if (c) setCredits({ remaining: c.remaining, total: c.total }); })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
@@ -94,6 +103,27 @@ export function Home({ state, navigate }: HomeProps) {
           <XPBar xp={state.xp} />
         </motion.div>
       </div>
+
+      {/* Credits badge */}
+      {credits && (
+        <div className="px-5 mb-3">
+          <div
+            className="rounded-xl px-4 py-2.5 flex items-center gap-2"
+            style={{
+              background: credits.remaining > 0 ? "#F0FDF4" : "#FEF2F2",
+              border: `1px solid ${credits.remaining > 0 ? "#BBF7D0" : "#FECACA"}`,
+            }}
+          >
+            <Zap size={16} color={credits.remaining > 0 ? "#16A34A" : "#DC2626"} />
+            <span style={{ fontSize: "13px", fontWeight: 600, color: credits.remaining > 0 ? "#166534" : "#991B1B" }}>
+              {credits.remaining} parse credit{credits.remaining !== 1 ? "s" : ""} remaining
+            </span>
+            <span style={{ fontSize: "11px", color: "#9CA3AF", marginLeft: "auto" }}>
+              {credits.total} total
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Primary CTA */}
       <div className="px-5 mb-3">

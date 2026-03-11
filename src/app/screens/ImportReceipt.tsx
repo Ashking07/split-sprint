@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { Camera, Link, Sparkles, Link2, Check } from "lucide-react";
+import { Camera, Image as ImageIcon, Sparkles, Link2, Check } from "lucide-react";
 import { hapticLight } from "../../lib/haptic";
 import { NavBar } from "../components/NavBar";
 import { Screen } from "../types";
@@ -200,19 +200,19 @@ export function ImportReceipt({ navigate }: ImportReceiptProps) {
               className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
               style={{ background: "linear-gradient(135deg, #6366F1, #4F46E5)" }}
             >
-              <Link size={26} color="white" />
+              <ImageIcon size={26} color="white" />
             </div>
             <div className="flex-1">
               <h3 style={{ fontSize: "17px", fontWeight: 800, color: "#1A1A2E" }}>
-                Online Receipt
+                Upload Receipt
               </h3>
               <p style={{ fontSize: "13px", color: "#4B5563", marginTop: "4px", lineHeight: 1.5 }}>
-                Paste a URL, forward an email, or share a screenshot from any app.
+                Upload a screenshot, photo, or paste text from any receipt or bill.
               </p>
               <div className="flex items-center gap-1.5 mt-3">
                 <Sparkles size={12} color="#6366F1" />
                 <span style={{ fontSize: "12px", color: "#4F46E5", fontWeight: 700 }}>
-                  Email · URL · Screenshot
+                  Photo · Screenshot · Text
                 </span>
               </div>
             </div>

@@ -2,9 +2,24 @@
  * Server-only OpenAI receipt parser.
  * Uses vision for images, text for pasted content.
  * Structured outputs ensure valid JSON matching our schema.
+ *
+ * Resilience: AbortController timeout (20s image / 12s text) + 1 retry for
+ * transient failures (timeout, 5xx, rate-limit). Non-retryable errors
+ * (auth, bad request) propagate immediately.
  */
 
 import OpenAI from "openai";
+import { classifyError, ExternalServiceError } from "./resilientFetch.js";
+
+/** Timeout for image-based parsing (vision models are slower) */
+const IMAGE_TIMEOUT_MS = 30_000;
+/** Timeout for text-based parsing */
+const TEXT_TIMEOUT_MS = 15_000;
+/** Max retries for transient failures */
+const MAX_RETRIES = 2;
+
+/** @param {number} ms */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const RECEIPT_SCHEMA = {
   type: "json_schema",
@@ -164,6 +179,52 @@ function normalizeParsedOutput(raw) {
   };
 }
 
+/**
+ * Call OpenAI chat.completions.create with timeout + retry.
+ * @param {OpenAI} client
+ * @param {object} params - chat.completions.create params
+ * @param {number} timeoutMs
+ * @returns {Promise<string>} parsed text content
+ */
+async function callOpenAIWithResilience(client, params, timeoutMs) {
+  let lastError;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const completion = await client.chat.completions.create(params, {
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+
+      const text = completion.choices?.[0]?.message?.content;
+      if (!text) throw new Error("No response from OpenAI");
+      return text;
+    } catch (err) {
+      clearTimeout(timer);
+      lastError = classifyError(err, "openai");
+
+      // Only retry on transient errors
+      const retryable =
+        lastError.kind === "timeout" ||
+        lastError.kind === "network" ||
+        lastError.kind === "upstream" ||
+        lastError.kind === "rate_limit";
+
+      if (!retryable || attempt >= MAX_RETRIES) {
+        throw lastError;
+      }
+
+      const delay = Math.min(4000, 500 * 2 ** attempt) + Math.random() * 300;
+      await sleep(delay);
+    }
+  }
+
+  throw lastError;
+}
+
 export async function parseReceiptFromImage(imageBase64, currencyHint = "USD") {
   const apiKey = process.env.OPENAI_API_KEY;
   // gpt-4o-mini is fast/cheap; set OPENAI_RECEIPT_MODEL=gpt-4o for complex receipts
@@ -174,28 +235,30 @@ export async function parseReceiptFromImage(imageBase64, currencyHint = "USD") {
 
   const dataUrl = imageBase64.startsWith("data:") ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
 
-  const completion = await client.chat.completions.create({
-    model,
-    messages: [
-      {
-        role: "system",
-        content: `${RECEIPT_SYSTEM_PROMPT}\n\nCurrency hint: ${currencyHint}. Output valid JSON matching the schema.`,
-      },
-      {
-        role: "user",
-        content: [
-          {
-            type: "image_url",
-            image_url: { url: dataUrl },
-          },
-        ],
-      },
-    ],
-    response_format: RECEIPT_SCHEMA,
-  });
+  const text = await callOpenAIWithResilience(
+    client,
+    {
+      model,
+      messages: [
+        {
+          role: "system",
+          content: `${RECEIPT_SYSTEM_PROMPT}\n\nCurrency hint: ${currencyHint}. Output valid JSON matching the schema.`,
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: { url: dataUrl, detail: "high" },
+            },
+          ],
+        },
+      ],
+      response_format: RECEIPT_SCHEMA,
+    },
+    IMAGE_TIMEOUT_MS
+  );
 
-  const text = completion.choices?.[0]?.message?.content;
-  if (!text) throw new Error("No response from OpenAI");
   const parsed = JSON.parse(text);
   return normalizeParsedOutput(parsed);
 }
@@ -207,23 +270,25 @@ export async function parseReceiptFromText(pastedText, currencyHint = "USD") {
 
   const client = new OpenAI({ apiKey });
 
-  const completion = await client.chat.completions.create({
-    model,
-    messages: [
-      {
-        role: "system",
-        content: `${RECEIPT_SYSTEM_PROMPT}\n\nCurrency hint: ${currencyHint}. Output valid JSON matching the schema.`,
-      },
-      {
-        role: "user",
-        content: pastedText,
-      },
-    ],
-    response_format: RECEIPT_SCHEMA,
-  });
+  const text = await callOpenAIWithResilience(
+    client,
+    {
+      model,
+      messages: [
+        {
+          role: "system",
+          content: `${RECEIPT_SYSTEM_PROMPT}\n\nCurrency hint: ${currencyHint}. Output valid JSON matching the schema.`,
+        },
+        {
+          role: "user",
+          content: pastedText,
+        },
+      ],
+      response_format: RECEIPT_SCHEMA,
+    },
+    TEXT_TIMEOUT_MS
+  );
 
-  const text = completion.choices?.[0]?.message?.content;
-  if (!text) throw new Error("No response from OpenAI");
   const parsed = JSON.parse(text);
   return normalizeParsedOutput(parsed);
 }

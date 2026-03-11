@@ -70,7 +70,8 @@ export function InstallPrompt() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            className="fixed top-0 left-0 right-0 z-50 px-4 pt-3 pb-4 safe-area-inset-top"
+            className="fixed top-0 left-0 right-0 z-50 px-4 pb-4"
+            style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top, 0.75rem))" }}
           >
             <div
               className="mx-auto max-w-lg rounded-2xl overflow-hidden shadow-xl border border-white/10 dark:border-white/5"
@@ -158,17 +159,17 @@ export function InstallPrompt() {
                 </div>
               </div>
               <ol className="space-y-3 mb-6" style={{ fontSize: "14px", color: "#374151", lineHeight: 1.6 }}>
-                <li className="flex gap-3">
+                <li className="flex gap-3 items-start">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "#22C55E", color: "white", fontWeight: 700, fontSize: "12px" }}>1</span>
-                  Tap the <strong>Share</strong> button in Safari (square with arrow)
+                  <span>Tap the <strong>Share</strong> button in Safari (square with arrow)</span>
                 </li>
-                <li className="flex gap-3">
+                <li className="flex gap-3 items-start">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "#22C55E", color: "white", fontWeight: 700, fontSize: "12px" }}>2</span>
-                  Scroll down and tap <strong>Add to Home Screen</strong>
+                  <span>Scroll down and tap <strong>Add to Home Screen</strong></span>
                 </li>
-                <li className="flex gap-3">
+                <li className="flex gap-3 items-start">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "#22C55E", color: "white", fontWeight: 700, fontSize: "12px" }}>3</span>
-                  Tap <strong>Add</strong> in the top right
+                  <span>Tap <strong>Add</strong> in the top right</span>
                 </li>
               </ol>
               <button

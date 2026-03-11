@@ -8,8 +8,9 @@ import { SplitwiseOAuthState } from "../models/SplitwiseOAuthState.js";
 import { Group } from "../models/Group.js";
 import { Bill } from "../models/Bill.js";
 import { User } from "../models/User.js";
-import { splitwiseFetch, getSplitwiseToken } from "../lib/splitwiseClient.js";
+import { splitwiseFetch, getSplitwiseToken, splitwiseUploadReceipt } from "../lib/splitwiseClient.js";
 import { computeSettlementSnapshot } from "../lib/settlement.js";
+import { resilientFetch, classifyError } from "../lib/resilientFetch.js";
 
 const router = Router();
 
@@ -188,7 +189,7 @@ router.get("/callback", async (req, res) => {
   }
 
   try {
-    const tokenRes = await fetch(SPLITWISE_TOKEN_URL, {
+    const tokenRes = await resilientFetch(SPLITWISE_TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -198,6 +199,9 @@ router.get("/callback", async (req, res) => {
         client_id: clientId,
         client_secret: clientSecret,
       }),
+      timeoutMs: 8000,
+      retries: 1,
+      service: "splitwise",
     });
 
     const tokenData = await tokenRes.json();
@@ -217,8 +221,11 @@ router.get("/callback", async (req, res) => {
     const expiresIn = tokenData.expires_in;
 
     const apiBase = process.env.SPLITWISE_BASE_URL || "https://secure.splitwise.com/api/v3.0";
-    const userRes = await fetch(`${apiBase}/get_current_user`, {
+    const userRes = await resilientFetch(`${apiBase}/get_current_user`, {
       headers: { Authorization: `${tokenType} ${accessToken}` },
+      timeoutMs: 5000,
+      retries: 1,
+      service: "splitwise",
     });
     const userData = await userRes.json();
     const swUser = userData?.user;
@@ -256,8 +263,14 @@ router.get("/callback", async (req, res) => {
     );
     console.log("[Splitwise] Saved connection for userId:", storedUserId);
 
-    const groupsTest = await fetch(`${apiBase}/get_groups`, {
+    const groupsTest = await resilientFetch(`${apiBase}/get_groups`, {
       headers: { Authorization: `${tokenType} ${accessToken}` },
+      timeoutMs: 5000,
+      retries: 0,
+      service: "splitwise",
+    }).catch((err) => {
+      console.warn("[Splitwise] get_groups test failed (non-critical):", err.message);
+      return { status: 0, statusText: err.message };
     });
     console.log("[Splitwise] get_groups test right after save:", groupsTest.status, groupsTest.statusText);
 
@@ -476,6 +489,47 @@ router.post("/expenses/create", authMiddleware, async (req, res) => {
     await connectDB();
     const bill = await Bill.findOne({ _id: billId, ownerId: req.userId }).lean();
     if (!bill) return res.status(404).json({ error: "Bill not found" });
+
+    // ── Idempotency guard ──────────────────────────────────────────────
+    // 1. Already exported → return existing expense immediately
+    if (bill.splitwiseExpenseId && bill.splitwiseExportStatus === "sent") {
+      return res.status(200).json({
+        success: true,
+        expenseId: bill.splitwiseExpenseId,
+        expenseUrl: `https://www.splitwise.com/expenses/${bill.splitwiseExpenseId}`,
+        idempotent: true,
+      });
+    }
+
+    // 2. Acquire atomic lock: only one request can move null → "pending"
+    const lockResult = await Bill.findOneAndUpdate(
+      {
+        _id: billId,
+        ownerId: req.userId,
+        $or: [
+          { splitwiseExportStatus: { $exists: false } },
+          { splitwiseExportStatus: null },
+        ],
+      },
+      { $set: { splitwiseExportStatus: "pending" } },
+      { new: true }
+    );
+    if (!lockResult) {
+      // Another request is already in-flight or completed
+      const current = await Bill.findOne({ _id: billId, ownerId: req.userId }).lean();
+      if (current?.splitwiseExpenseId) {
+        return res.status(200).json({
+          success: true,
+          expenseId: current.splitwiseExpenseId,
+          expenseUrl: `https://www.splitwise.com/expenses/${current.splitwiseExpenseId}`,
+          idempotent: true,
+        });
+      }
+      return res.status(409).json({
+        error: "Expense export already in progress. Please wait a moment and try again.",
+      });
+    }
+    // ── End idempotency guard ──────────────────────────────────────────
 
     const conn = await getSplitwiseToken(req.userId);
     if (!conn) {
@@ -730,7 +784,22 @@ router.post("/expenses/create", authMiddleware, async (req, res) => {
     if (expenseId) {
       await Bill.findByIdAndUpdate(billId, {
         splitwiseExpenseId: expenseId,
+        splitwiseExportStatus: "sent",
         status: "sent",
+      });
+
+      // Upload receipt image to Splitwise (fire-and-forget)
+      if (bill.rawReceipt?.imageBase64) {
+        splitwiseUploadReceipt(req.userId, expenseId, bill.rawReceipt.imageBase64)
+          .then((ok) => {
+            if (ok) console.log(`[Splitwise] Receipt image uploaded for expense ${expenseId}`);
+          })
+          .catch((err) => console.warn(`[Splitwise] Receipt image upload failed:`, err.message));
+      }
+    } else {
+      // No expense returned — release the lock so user can retry
+      await Bill.findByIdAndUpdate(billId, {
+        $unset: { splitwiseExportStatus: 1 },
       });
     }
 
@@ -752,6 +821,15 @@ router.post("/expenses/create", authMiddleware, async (req, res) => {
       streak: updated?.streak ?? 0,
     });
   } catch (err) {
+    // Release idempotency lock on failure so the user can retry
+    try {
+      await Bill.findOneAndUpdate(
+        { _id: billId, splitwiseExportStatus: "pending" },
+        { $unset: { splitwiseExportStatus: 1 } }
+      );
+    } catch (unlockErr) {
+      console.error("[Splitwise] Failed to release export lock:", unlockErr.message);
+    }
     console.error("Splitwise create expense error:", err);
     return res.status(500).json({ error: err.message });
   }

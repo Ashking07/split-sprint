@@ -17,9 +17,13 @@ async function fetchWithRetry(
   retries = 1
 ): Promise<Response> {
   let res = await fetch(url, init);
-  if (res.status === 504 && retries > 0) {
+  if (res.status >= 500 && retries > 0) {
     await new Promise((r) => setTimeout(r, 2500));
     res = await fetch(url, init);
+    if (res.status >= 500 && retries > 1) {
+      await new Promise((r) => setTimeout(r, 3500));
+      res = await fetch(url, init);
+    }
   }
   return res;
 }
@@ -215,11 +219,23 @@ export async function apiParseReceipt(payload: {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify(payload),
-  });
+  }, 2);
   const data = await parseJson(res);
   if (res.status === 401) throw new Error("Unauthorized");
+  if (res.status === 403) throw new Error(data.error || "No credits remaining");
+  if (res.status === 429) throw new Error(data.error || "Too many requests");
   if (!res.ok) throw new Error(data.error || "Failed to parse receipt");
   return data;
+}
+
+export async function apiGetCredits() {
+  const res = await fetchWithRetry(`${API_BASE}/api/credits`, {
+    headers: getHeaders(),
+  });
+  if (res.status === 401) return null;
+  const data = await parseJson(res);
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data as { total: number; used: number; remaining: number; includedCredits: number; bonusCredits: number };
 }
 
 export async function apiSplitwiseStatus() {

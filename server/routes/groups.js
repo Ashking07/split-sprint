@@ -9,6 +9,31 @@ import { createGroupSchema, createGroupFromSplitwiseSchema } from "../schemas/in
 const router = Router();
 const COLORS = ["#7C3AED", "#0891B2", "#D97706", "#DC2626", "#059669"];
 
+// ── Short-TTL in-memory cache for Splitwise groups per user ─────────────
+const SW_GROUPS_TTL_MS = 60_000; // 1 minute
+const swGroupsCache = new Map(); // key: userId string → { ts, groups }
+
+async function getCachedSplitwiseGroups(userId) {
+  const key = userId.toString();
+  const cached = swGroupsCache.get(key);
+  if (cached && Date.now() - cached.ts < SW_GROUPS_TTL_MS) return cached.groups;
+
+  try {
+    const data = await splitwiseFetch(userId, "/get_groups");
+    const groups = data.groups || [];
+    swGroupsCache.set(key, { ts: Date.now(), groups });
+    // Prevent unbounded growth — evict oldest entries beyond 200 users
+    if (swGroupsCache.size > 200) {
+      const oldest = swGroupsCache.keys().next().value;
+      swGroupsCache.delete(oldest);
+    }
+    return groups;
+  } catch (err) {
+    console.warn("[Groups] Splitwise groups fetch failed, using stale cache:", err.message);
+    return cached?.groups || [];
+  }
+}
+
 function splitwiseMembersToPersons(splitwiseMembers) {
   if (!splitwiseMembers?.length) return [];
   return splitwiseMembers.map((m, i) => {
@@ -92,68 +117,104 @@ router.get("/", async (req, res) => {
       .sort({ updatedAt: -1 })
       .lean();
 
-    const withMembers = await Promise.all(
-      groups.map(async (g) => {
-        let splitwiseMembers = g.splitwiseMembers;
-        if (g.splitwiseGroupId && !splitwiseMembers?.length) {
-          try {
-            const data = await splitwiseFetch(req.userId, "/get_groups");
-            const swGroup = (data.groups || []).find((gr) => gr.id === g.splitwiseGroupId);
-            if (swGroup?.members?.length) {
-              splitwiseMembers = swGroup.members.map((m) => ({
-                id: m.id,
-                email: m.email,
-                first_name: m.first_name,
-                last_name: m.last_name,
-              }));
-              await Group.findByIdAndUpdate(g._id, { splitwiseMembers });
-            }
-          } catch (err) {
-            console.warn("[Groups] Could not fetch Splitwise members for group:", g._id, err.message);
-          }
+    // ── 1. Identify groups needing Splitwise member backfill ────────────
+    const needsSwBackfill = groups.filter(
+      (g) => g.splitwiseGroupId && !g.splitwiseMembers?.length
+    );
+
+    // ── 2. Single Splitwise fetch (cached 60s) if any group needs it ───
+    let swGroupMap = new Map();
+    if (needsSwBackfill.length > 0) {
+      const swGroups = await getCachedSplitwiseGroups(req.userId);
+      for (const sg of swGroups) swGroupMap.set(sg.id, sg);
+
+      // Batch-update all groups that were missing Splitwise members
+      const bulkOps = [];
+      for (const g of needsSwBackfill) {
+        const swGroup = swGroupMap.get(g.splitwiseGroupId);
+        if (swGroup?.members?.length) {
+          const members = swGroup.members.map((m) => ({
+            id: m.id,
+            email: m.email,
+            first_name: m.first_name,
+            last_name: m.last_name,
+          }));
+          g.splitwiseMembers = members; // patch in-memory for response
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: g._id },
+              update: { $set: { splitwiseMembers: members } },
+            },
+          });
         }
-        if (splitwiseMembers?.length) {
-          const members = splitwiseMembersToPersons(splitwiseMembers);
-          return {
-            id: g._id.toString(),
-            name: g.name,
-            emoji: "👥",
-            ownerId: g.ownerId.toString(),
-            memberIds: members.map((m) => m.id),
-            members,
-            splitwiseGroupId: g.splitwiseGroupId,
-            lastUsed: false,
-            createdAt: g.createdAt,
-          };
-        }
-        const memberIds = [
-          g.ownerId.toString(),
-          ...(g.memberIds || []).map((m) => m.toString()).filter((id) => id !== g.ownerId.toString()),
-        ];
-        const users = await User.find({ _id: { $in: memberIds } })
-          .select("_id name email")
-          .lean();
-        const members = users.map((u, i) => ({
-          id: u._id.toString(),
-          name: u.name || u.email?.split("@")[0] || "?",
-          avatar: (u.name || u.email || "?")[0].toUpperCase(),
-          color: COLORS[i % COLORS.length],
-        }));
+      }
+      if (bulkOps.length > 0) {
+        Group.bulkWrite(bulkOps).catch((err) =>
+          console.warn("[Groups] Bulk SW member cache write failed:", err.message)
+        );
+      }
+    }
+
+    // ── 3. Batch user lookup for non-Splitwise groups ──────────────────
+    const allUserIds = new Set();
+    for (const g of groups) {
+      if (g.splitwiseMembers?.length) continue; // handled via Splitwise path
+      allUserIds.add(g.ownerId.toString());
+      for (const mid of g.memberIds || []) allUserIds.add(mid.toString());
+    }
+    const userMap = new Map();
+    if (allUserIds.size > 0) {
+      const users = await User.find({ _id: { $in: [...allUserIds] } })
+        .select("_id name email")
+        .lean();
+      for (const u of users) userMap.set(u._id.toString(), u);
+    }
+
+    // ── 4. Assemble response (no more per-group queries) ───────────────
+    const result = groups.map((g) => {
+      if (g.splitwiseMembers?.length) {
+        const members = splitwiseMembersToPersons(g.splitwiseMembers);
         return {
           id: g._id.toString(),
           name: g.name,
           emoji: "👥",
           ownerId: g.ownerId.toString(),
-          memberIds: memberIds,
+          memberIds: members.map((m) => m.id),
           members,
           splitwiseGroupId: g.splitwiseGroupId,
           lastUsed: false,
           createdAt: g.createdAt,
         };
-      })
-    );
+      }
 
-    return res.status(200).json(withMembers);
+      const memberIds = [
+        g.ownerId.toString(),
+        ...(g.memberIds || []).map((m) => m.toString()).filter((id) => id !== g.ownerId.toString()),
+      ];
+      const members = memberIds.map((id, i) => {
+        const u = userMap.get(id);
+        const name = u?.name || u?.email?.split("@")[0] || "?";
+        return {
+          id,
+          name,
+          avatar: (name || "?")[0].toUpperCase(),
+          color: COLORS[i % COLORS.length],
+        };
+      });
+      return {
+        id: g._id.toString(),
+        name: g.name,
+        emoji: "👥",
+        ownerId: g.ownerId.toString(),
+        memberIds,
+        members,
+        splitwiseGroupId: g.splitwiseGroupId,
+        lastUsed: false,
+        createdAt: g.createdAt,
+      };
+    });
+
+    return res.status(200).json(result);
   } catch (err) {
     console.error("List groups error:", err);
     return res.status(500).json({ error: err.message || "Failed to list groups" });
@@ -177,8 +238,8 @@ router.patch("/:id", async (req, res) => {
         group.splitwiseMembers = undefined;
       } else {
         try {
-          const data = await splitwiseFetch(req.userId, "/get_groups");
-          const swGroup = (data.groups || []).find((g) => g.id === group.splitwiseGroupId);
+          const swGroups = await getCachedSplitwiseGroups(req.userId);
+          const swGroup = swGroups.find((g) => g.id === group.splitwiseGroupId);
           if (swGroup?.members?.length) {
             group.splitwiseMembers = swGroup.members.map((m) => ({
               id: m.id,

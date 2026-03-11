@@ -33,6 +33,7 @@ export function ReceiptReview({ state, setState, navigate }: ReceiptReviewProps)
   const [showCustomTip, setShowCustomTip] = useState(false);
   const [filter, setFilter] = useState<"all" | "needs_review">("all");
   const [saving, setSaving] = useState(false);
+  const [itemPendingDelete, setItemPendingDelete] = useState<ReceiptItem | null>(null);
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
   const tipAmount = state.tipPreset === -1
@@ -113,6 +114,12 @@ export function ReceiptReview({ state, setState, navigate }: ReceiptReviewProps)
     if (editingItem === id) setEditingItem(null);
   };
 
+  const confirmDelete = () => {
+    if (!itemPendingDelete) return;
+    deleteItem(itemPendingDelete.id);
+    setItemPendingDelete(null);
+  };
+
   const handleMergeDuplicates = () => {
     const merged = mergeDuplicates(items);
     setState({ items: merged });
@@ -147,6 +154,52 @@ export function ReceiptReview({ state, setState, navigate }: ReceiptReviewProps)
         onBack={() => navigate("import")}
       />
       <ProgressStepper currentStep={1} />
+
+      <AnimatePresence>
+        {itemPendingDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center px-5"
+            style={{ background: "rgba(17,24,39,0.45)" }}
+            onClick={() => setItemPendingDelete(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="w-full max-w-sm rounded-2xl p-4"
+              style={{ background: "white", boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 style={{ fontSize: "16px", fontWeight: 800, color: "#1A1A2E", marginBottom: "6px" }}>
+                Delete item?
+              </h3>
+              <p style={{ fontSize: "13px", color: "#6B7280", lineHeight: 1.5, marginBottom: "14px" }}>
+                Remove “{itemPendingDelete.name}” from this receipt? This action cannot be undone.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setItemPendingDelete(null)}
+                  className="px-4 py-2 rounded-xl"
+                  style={{ background: "#F3F4F6", color: "#374151", fontSize: "13px", fontWeight: 700 }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-2 rounded-xl"
+                  style={{ background: "#DC2626", color: "white", fontSize: "13px", fontWeight: 700 }}
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Scrollable items */}
       <div className="flex-1 overflow-y-auto px-5 pb-2">
@@ -309,7 +362,7 @@ export function ReceiptReview({ state, setState, navigate }: ReceiptReviewProps)
                   </span>
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => deleteItem(item.id)}
+                      onClick={() => setItemPendingDelete(item)}
                       className="w-8 h-8 rounded-lg flex items-center justify-center"
                       style={{ background: "#FEF2F2" }}
                     >

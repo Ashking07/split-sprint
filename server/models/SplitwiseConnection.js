@@ -17,6 +17,11 @@ const splitwiseConnectionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Token lookups filter by userId + revokedAt (the unique:true on userId alone
+// already gives a single-field index, but this compound index covers the
+// common { userId, revokedAt: null } query without a collection scan).
+splitwiseConnectionSchema.index({ userId: 1, revokedAt: 1 });
+
 export const SplitwiseConnection =
   mongoose.models.SplitwiseConnection ||
   mongoose.model("SplitwiseConnection", splitwiseConnectionSchema);

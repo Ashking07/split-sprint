@@ -31,6 +31,8 @@ const billSchema = new mongoose.Schema(
     participantsByItem: { type: mongoose.Schema.Types.Mixed, default: {} },
     status: { type: String, enum: ["draft", "sent"], default: "draft" },
     splitwiseExpenseId: { type: Number },
+    /** Atomic lock for Splitwise export: null → "pending" → "sent" */
+    splitwiseExportStatus: { type: String, enum: ["pending", "sent"], default: undefined },
     settlementSnapshot: {
       shares: [{ participantId: String, amountCents: Number }],
       whoOwesPayer: [{ participantId: String, amountCents: Number }],
@@ -40,5 +42,6 @@ const billSchema = new mongoose.Schema(
 );
 
 billSchema.index({ ownerId: 1, updatedAt: -1 });
+billSchema.index({ ownerId: 1, status: 1, updatedAt: -1 });
 
 export const Bill = mongoose.models.Bill || mongoose.model("Bill", billSchema);

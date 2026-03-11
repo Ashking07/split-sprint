@@ -17,4 +17,8 @@ const groupSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Groups are queried by ownerId sorted by updatedAt, and by memberIds
+groupSchema.index({ ownerId: 1, updatedAt: -1 });
+groupSchema.index({ memberIds: 1 });
+
 export const Group = mongoose.models.Group || mongoose.model("Group", groupSchema);
