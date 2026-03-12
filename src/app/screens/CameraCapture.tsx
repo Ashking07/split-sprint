@@ -249,10 +249,11 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
   }, [capturedUrl]);
 
   const handleCapture = async () => {
-    if (cameraReady && videoRef.current && streamRef.current) {
+    if (cameraReady && videoHasFrames && videoRef.current && streamRef.current) {
       const video = videoRef.current;
       if (!video.videoWidth || !video.videoHeight) {
-        setParseError("Camera not ready. Wait a moment or upload a photo.");
+        // Fallback: open file picker instead of showing an error
+        fileInputRef.current?.click();
         return;
       }
       hapticLight();
@@ -274,6 +275,7 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
         setParseError("Could not capture photo. Try again.");
       }
     } else {
+      // Camera not ready or no frames yet — open file picker
       fileInputRef.current?.click();
     }
   };
@@ -342,11 +344,11 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
               <div className="w-10" />
             </div>
 
-            <div className="flex-1 relative overflow-hidden mx-4 rounded-2xl">
+            <div className="flex-1 mx-4 rounded-2xl overflow-hidden relative flex items-center justify-center bg-black/50" style={{ minHeight: 0 }}>
               <img
                 src={capturedUrl}
                 alt="Captured receipt"
-                className="absolute inset-0 w-full h-full object-contain bg-black/50"
+                className="max-w-full max-h-full object-contain"
               />
               <div
                 className="absolute bottom-0 left-0 right-0 px-4 py-3"
