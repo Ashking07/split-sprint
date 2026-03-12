@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { motion } from "motion/react";
-import { ExternalLink, Home } from "lucide-react";
+import { Check, ExternalLink, Home } from "lucide-react";
 import confetti from "canvas-confetti";
 import { AppState, Screen } from "../types";
 import { GROUPS } from "../mockData";
@@ -82,41 +82,81 @@ export function Success({ state, setState, navigate }: SuccessProps) {
         paddingTop: "max(1.5rem, env(safe-area-inset-top, 1.5rem))",
       }}
     >
-      {/* Success animation */}
       <motion.div
-        initial={{ scale: 0, rotate: -20 }}
-        animate={{ scale: 1, rotate: 0 }}
-        transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.1 }}
-        className="w-24 h-24 rounded-3xl flex items-center justify-center mb-4"
-        style={{ background: "linear-gradient(135deg, #22C55E, #16A34A)", boxShadow: "0 16px 40px rgba(34,197,94,0.4)" }}
-      >
-        <motion.div
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4 }}
-          style={{ fontSize: "42px" }}
-        >
-          ✅
-        </motion.div>
-      </motion.div>
-
-      <motion.h1
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        style={{ fontSize: "24px", fontWeight: 900, color: "#1A1A2E", textAlign: "center", marginBottom: "4px" }}
+        transition={{ delay: 0.15 }}
+        className="w-full rounded-[28px] px-5 py-5 mb-5"
+        style={{
+          background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.82))",
+          border: "1px solid rgba(255,255,255,0.75)",
+          boxShadow: "0 18px 45px rgba(15,23,42,0.08)",
+          backdropFilter: "blur(16px)",
+        }}
       >
-        Added to Splitwise!
-      </motion.h1>
+        <div className="flex items-start gap-4">
+          <motion.div
+            initial={{ scale: 0.85, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.25, type: "spring", stiffness: 320, damping: 22 }}
+            className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{
+              background: "linear-gradient(135deg, rgba(34,197,94,0.16), rgba(34,197,94,0.26))",
+              border: "1px solid rgba(34,197,94,0.28)",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.55)",
+            }}
+          >
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: "linear-gradient(135deg, #22C55E, #16A34A)" }}
+            >
+              <Check size={20} color="white" strokeWidth={3} />
+            </div>
+          </motion.div>
 
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.4 }}
-        style={{ fontSize: "14px", color: "#6B7280", textAlign: "center", marginBottom: "24px" }}
-      >
-        ${total.toFixed(2)} split between {people.length} people in {selectedGroup.name}
-      </motion.p>
+          <div className="flex-1 min-w-0 pt-0.5">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.28 }}
+              className="inline-flex items-center rounded-full px-2.5 py-1 mb-2"
+              style={{
+                background: "rgba(34,197,94,0.1)",
+                color: "#15803D",
+                fontSize: "11px",
+                fontWeight: 800,
+                letterSpacing: "0.08em",
+              }}
+            >
+              EXPENSE CREATED
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              style={{
+                fontSize: "24px",
+                fontWeight: 900,
+                color: "#171739",
+                lineHeight: 1.05,
+                marginBottom: "6px",
+              }}
+            >
+              Added to Splitwise
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.38 }}
+              style={{ fontSize: "14px", color: "#667085", lineHeight: 1.45 }}
+            >
+              ${total.toFixed(2)} split between {people.length} people in {selectedGroup.name}
+            </motion.p>
+          </div>
+        </div>
+      </motion.div>
 
       {/* XP reward */}
       <motion.div
