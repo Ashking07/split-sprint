@@ -217,14 +217,8 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
 
       if (capturedUrl) setReceiptImage(capturedUrl);
 
-      const ok = await parseReceiptFromImage(base64);
-      if (ok) {
-        navigate("review");
-      } else {
-        hapticErrorFn();
-        setParseError("Could not extract items from this receipt.");
-        setPhase("error");
-      }
+      await parseReceiptFromImage(base64);
+      navigate("review");
     } catch (err) {
       hapticErrorFn();
       const message =

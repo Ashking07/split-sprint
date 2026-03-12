@@ -26,6 +26,8 @@ const usageSchema = new mongoose.Schema(
     usedCredits: { type: Number, default: 0 },
     /** Number of parse jobs currently in-flight (concurrency cap) */
     activeParses: { type: Number, default: 0 },
+    /** When the last parse slot was acquired (for stale-slot detection) */
+    lastParseStartedAt: { type: Date, default: null },
     /** Audit trail of admin grants */
     grants: [creditGrantSchema],
   },
@@ -57,6 +59,17 @@ usageSchema.statics.acquireParseSlot = async function (userId, maxConcurrent = 2
   // Ensure the record exists first
   await this.getOrCreate(userId);
 
+  // Auto-clear stale parse slots (stuck for >60s = crashed/timed-out request)
+  const STALE_THRESHOLD_MS = 60_000;
+  await this.updateOne(
+    {
+      userId,
+      activeParses: { $gt: 0 },
+      lastParseStartedAt: { $lt: new Date(Date.now() - STALE_THRESHOLD_MS) },
+    },
+    { $set: { activeParses: 0 } }
+  );
+
   const result = await this.findOneAndUpdate(
     {
       userId,
@@ -65,6 +78,7 @@ usageSchema.statics.acquireParseSlot = async function (userId, maxConcurrent = 2
     },
     {
       $inc: { usedCredits: 1, activeParses: 1 },
+      $set: { lastParseStartedAt: new Date() },
     },
     { new: true }
   );

@@ -228,9 +228,9 @@ export const useBillStore = create<BillStore>()(
           useBillStore.getState().applyParseResult(result, "vision", { imageBase64 });
           hapticSuccess();
           return true;
-        } catch {
+        } catch (err) {
           hapticError();
-          return false;
+          throw err;
         }
       },
 

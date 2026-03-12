@@ -109,16 +109,12 @@ export function PasteReceipt({ navigate }: PasteReceiptProps) {
 
       if (previewUrl) setReceiptImage(previewUrl);
 
-      const ok = await parseReceiptFromImage(base64);
-      if (ok) {
-        navigate("review");
-      } else {
-        setError(
-          "Could not extract items from this image. Try a clearer screenshot or photo."
-        );
-      }
-    } catch {
-      setError("Something went wrong. Please try again.");
+      await parseReceiptFromImage(base64);
+      navigate("review");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      setError(message);
     } finally {
       setLoading(false);
     }
