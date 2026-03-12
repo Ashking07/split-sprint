@@ -133,7 +133,8 @@ export async function callbackHandler(req, res) {
     }
 
     const accessToken = tokenData.access_token;
-    const tokenType = (tokenData.token_type || "Bearer").trim();
+    // Splitwise may return "bearer" (lowercase); normalize to "Bearer"
+    const tokenType = "Bearer";
     if (!accessToken) {
       console.error("[Splitwise] Token response missing access_token:", Object.keys(tokenData));
       return res.redirect(`${requestOrigin}/?splitwise=error&message=invalid_token_response`);
@@ -144,7 +145,7 @@ export async function callbackHandler(req, res) {
 
     const apiBase = process.env.SPLITWISE_BASE_URL || "https://secure.splitwise.com/api/v3.0";
     const userRes = await fetch(`${apiBase}/get_current_user`, {
-      headers: { Authorization: `${tokenType} ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     const userData = await userRes.json();
     const swUser = userData?.user;

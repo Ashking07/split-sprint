@@ -207,11 +207,14 @@ router.get("/callback", async (req, res) => {
     const tokenData = await tokenRes.json();
     if (!tokenRes.ok) {
       const err = tokenData?.error_description || tokenData?.error || "Token exchange failed";
+      console.error("[Splitwise] Token exchange failed:", tokenRes.status, JSON.stringify(tokenData));
+      console.error("[Splitwise] redirect_uri used:", redirectUri);
       return res.redirect(`${requestOrigin}/?splitwise=error&message=${encodeURIComponent(err)}`);
     }
 
     const accessToken = tokenData.access_token;
-    const tokenType = (tokenData.token_type || "Bearer").trim();
+    // Splitwise may return "bearer" (lowercase); normalize to "Bearer"
+    const tokenType = "Bearer";
     if (!accessToken) {
       console.error("[Splitwise] Token response missing access_token:", Object.keys(tokenData));
       return res.redirect(`${requestOrigin}/?splitwise=error&message=invalid_token_response`);
@@ -221,11 +224,9 @@ router.get("/callback", async (req, res) => {
     const expiresIn = tokenData.expires_in;
 
     const apiBase = process.env.SPLITWISE_BASE_URL || "https://secure.splitwise.com/api/v3.0";
-    const userRes = await resilientFetch(`${apiBase}/get_current_user`, {
-      headers: { Authorization: `${tokenType} ${accessToken}` },
-      timeoutMs: 5000,
-      retries: 1,
-      service: "splitwise",
+    // Plain fetch — resilientFetch throws on 401 before we can handle it gracefully
+    const userRes = await fetch(`${apiBase}/get_current_user`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     const userData = await userRes.json();
     const swUser = userData?.user;
