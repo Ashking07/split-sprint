@@ -250,7 +250,7 @@ export default function App() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.2, ease: "easeInOut" }}
-            className="flex flex-col h-full"
+            className="flex flex-col flex-1 min-h-0"
           >
             {renderScreen()}
           </motion.div>

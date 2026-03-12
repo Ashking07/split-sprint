@@ -312,7 +312,7 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0A0A0A] safe-area-top">
+    <div className="flex flex-col flex-1 min-h-0 bg-[#0A0A0A] safe-area-top">
       <AnimatePresence mode="wait">
         {/* ── PREVIEW PHASE ─────────────────────────────────────────── */}
         {phase === "preview" && capturedUrl && (
@@ -321,7 +321,7 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex flex-col h-full"
+            className="flex flex-col flex-1 min-h-0"
           >
             <div className="flex items-center justify-between px-5 py-4 z-10">
               <button
@@ -424,7 +424,7 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex flex-col h-full items-center justify-center px-8"
+            className="flex flex-col flex-1 items-center justify-center px-8"
           >
             {capturedUrl && (
               <motion.div
@@ -526,7 +526,7 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex flex-col h-full"
+            className="flex flex-col flex-1 min-h-0"
           >
             <div className="flex items-center px-5 py-4">
               <button
@@ -663,7 +663,7 @@ export function CameraCapture({ navigate }: CameraCaptureProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex flex-col h-full"
+            className="flex flex-col flex-1 min-h-0"
           >
             {parseError && (
               <motion.div
