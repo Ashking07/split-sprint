@@ -189,7 +189,10 @@ router.get("/callback", async (req, res) => {
   }
 
   try {
-    const tokenRes = await resilientFetch(SPLITWISE_TOKEN_URL, {
+    // Use plain fetch for token exchange — OAuth codes are single-use, so
+    // resilientFetch's retry logic would replay the code and cause "invalid_grant".
+    // It also throws on 401 before we can read the error body.
+    const tokenRes = await fetch(SPLITWISE_TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -199,9 +202,6 @@ router.get("/callback", async (req, res) => {
         client_id: clientId,
         client_secret: clientSecret,
       }),
-      timeoutMs: 8000,
-      retries: 1,
-      service: "splitwise",
     });
 
     const tokenData = await tokenRes.json();
